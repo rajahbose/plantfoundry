@@ -867,47 +867,57 @@ function fitToPage(imgW, imgH, pageW, pageH, margin = 8) {
 async function captureShell(shell) {
   const wasHidden  = shell.hasAttribute('hidden');
   const savedStyle = shell.getAttribute('style') || '';
+  const viewW      = document.documentElement.clientWidth;
 
-  // Unclip the shell so the full content is renderable
+  // Make element visible first
   shell.removeAttribute('hidden');
-  shell.style.setProperty('height',     'auto',    'important');
-  shell.style.setProperty('max-height', 'none',    'important');
-  shell.style.setProperty('overflow',   'visible', 'important');
 
-  // Unclip ancestors too (main-content)
-  const main = document.getElementById('main-content');
-  const mainSaved = main ? main.getAttribute('style') || '' : null;
-  if (main) {
-    main.style.setProperty('height',   'auto',    'important');
-    main.style.setProperty('overflow', 'visible', 'important');
-  }
+  // Pin to (0,0) as a fixed overlay — critical fix.
+  // html2canvas derives the canvas origin from the element's document position,
+  // so any Y-offset (topbar height, scroll, etc.) becomes blank white space.
+  // Fixing to top:0;left:0 eliminates that entirely.
+  shell.style.setProperty('position',   'fixed',         'important');
+  shell.style.setProperty('top',        '0',             'important');
+  shell.style.setProperty('left',       '0',             'important');
+  shell.style.setProperty('width',      `${viewW}px`,    'important');
+  shell.style.setProperty('height',     'auto',          'important');
+  shell.style.setProperty('max-height', 'none',          'important');
+  shell.style.setProperty('overflow',   'visible',       'important');
+  shell.style.setProperty('z-index',    '999999',        'important');
+  shell.style.setProperty('background', '#ffffff',       'important');
 
-  // Temporarily unset sticky on table header (html2canvas doesn't handle sticky well)
-  const thead = shell.querySelector('thead');
+  // De-sticky the table header — html2canvas doesn't handle position:sticky
+  const thead    = shell.querySelector('thead');
   const theadPos = thead ? thead.style.position : null;
   if (thead) thead.style.position = 'relative';
 
-  // Wait one frame for layout to settle
+  // Let the browser reflow with the new positioning before snapping
   await new Promise(r => requestAnimationFrame(r));
   await new Promise(r => requestAnimationFrame(r));
 
   const canvas = await html2canvas(shell, {
-    scale:           3,          // ~250 DPI equivalent on a 17" page
-    useCORS:         true,       // load cross-origin images via CORS
-    allowTaint:      false,      // skip images that fail CORS rather than tainting
+    scale:           3,
+    useCORS:         true,
+    allowTaint:      false,
     backgroundColor: '#ffffff',
     logging:         false,
     imageTimeout:    10000,
+    x:             0,
+    y:             0,
+    scrollX:       0,
+    scrollY:       0,
+    windowWidth:   viewW,
+    windowHeight:  shell.scrollHeight,
   });
 
-  // Restore everything
+  // Restore
   if (wasHidden) shell.setAttribute('hidden', '');
   shell.setAttribute('style', savedStyle);
-  if (main && mainSaved !== null) main.setAttribute('style', mainSaved);
   if (thead && theadPos !== null) thead.style.position = theadPos;
 
   return canvas;
 }
+
 
 async function exportPDF() {
   if (appState !== 'COMPLETE') return;
