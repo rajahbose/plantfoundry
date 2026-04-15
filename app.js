@@ -29,7 +29,8 @@ const CATEGORY_EMOJI = {
 //  STATE
 // ──────────────────────────────────────────────────────────
 
-let appState = 'IDLE'; // IDLE | GENERATING_TEXT | FETCHING_IMAGES | COMPLETE
+let appState  = 'IDLE'; // IDLE | GENERATING_TEXT | FETCHING_IMAGES | COMPLETE
+let viewMode  = 'grid'; // 'grid' | 'table'
 
 // ──────────────────────────────────────────────────────────
 //  DOM REFS
@@ -44,11 +45,17 @@ const el = {
   progressWrap:    document.getElementById('progress-bar-wrap'),
   progressBar:     document.getElementById('progress-bar'),
   statusLabel:     document.getElementById('status-label'),
-  gridShell:       document.getElementById('grid-shell'),
 
+  gridShell:       document.getElementById('grid-shell'),
   rowSmall:        document.getElementById('row-small'),
   rowShrubs:       document.getElementById('row-shrubs'),
   rowTrees:        document.getElementById('row-trees'),
+
+  tableShell:      document.getElementById('table-shell'),
+  tableBody:       document.getElementById('plant-table-body'),
+
+  btnGridView:     document.getElementById('btn-grid-view'),
+  btnTableView:    document.getElementById('btn-table-view'),
 
   toastContainer:  document.getElementById('toast-container'),
 };
@@ -166,37 +173,50 @@ function escapeHtml(str) {
 }
 
 /**
- * Injects an image URL into the card, or shows fallback emoji.
+ * Injects an image URL into the card AND the matching table thumbnail.
  * @param {string}      rowKey
  * @param {number}      index
- * @param {string|null} imageUrl  A direct URL string, or null for fallback
+ * @param {string|null} imageUrl
  */
 function injectCardImage(rowKey, index, imageUrl) {
+  // ── Card front image ──
   const skeleton = document.getElementById(`skeleton-${rowKey}-${index}`);
   const img      = document.getElementById(`img-${rowKey}-${index}`);
   const card     = document.getElementById(`card-${rowKey}-${index}`);
 
-  if (!skeleton || !img || !card) return;
-
-  if (!imageUrl) {
-    skeleton.classList.add('hidden');
-    const fail = document.createElement('div');
-    fail.className = 'card-img-fail';
-    fail.setAttribute('aria-hidden', 'true');
-    fail.textContent = CATEGORY_EMOJI[rowKey] || '🌿';
-    card.querySelector('.card-img-wrap').appendChild(fail);
-    return;
+  if (skeleton && img && card) {
+    if (!imageUrl) {
+      skeleton.classList.add('hidden');
+      const fail = document.createElement('div');
+      fail.className = 'card-img-fail';
+      fail.setAttribute('aria-hidden', 'true');
+      fail.textContent = CATEGORY_EMOJI[rowKey] || '🌿';
+      card.querySelector('.card-img-wrap').appendChild(fail);
+    } else {
+      img.src = imageUrl;
+      img.onload = () => {
+        img.classList.add('loaded');
+        skeleton.classList.add('hidden');
+      };
+      img.onerror = () => injectCardImage(rowKey, index, null);
+    }
   }
 
-  img.src = imageUrl;
-  img.onload = () => {
-    img.classList.add('loaded');
-    skeleton.classList.add('hidden');
-  };
-  img.onerror = () => {
-    // Show fallback if image URL fails to load
-    injectCardImage(rowKey, index, null);
-  };
+  // ── Table thumbnail ──
+  const thumbSkeleton = document.getElementById(`tsk-${rowKey}-${index}`);
+  const thumb         = document.getElementById(`tth-${rowKey}-${index}`);
+  if (thumb) {
+    if (imageUrl) {
+      thumb.src = imageUrl;
+      thumb.onload = () => {
+        thumb.classList.add('loaded');
+        if (thumbSkeleton) thumbSkeleton.remove();
+      };
+      thumb.onerror = () => { if (thumbSkeleton) thumbSkeleton.remove(); };
+    } else {
+      if (thumbSkeleton) thumbSkeleton.remove();
+    }
+  }
 }
 
 // ──────────────────────────────────────────────────────────
@@ -294,7 +314,84 @@ function renderSkeletonCards(plantList) {
 
 function clearGrid() {
   el.rowSmall.innerHTML = el.rowShrubs.innerHTML = el.rowTrees.innerHTML = '';
+  el.tableBody.innerHTML = '';
 }
+
+// ──────────────────────────────────────────────────────────
+//  TABLE RENDERING
+// ──────────────────────────────────────────────────────────
+
+const CATEGORY_LABELS = {
+  trees:  'Trees',
+  shrubs: 'Shrubs & Bushes',
+  small:  'Small Plants & Grasses',
+};
+
+function createTableRow(plant, rowKey, idx) {
+  const tr = document.createElement('tr');
+  tr.className = 'plant-row';
+  tr.innerHTML = `
+    <td class="td-thumb">
+      <div class="td-thumb-wrap">
+        <div class="table-thumb-skeleton" id="tsk-${rowKey}-${idx}"></div>
+        <img class="table-thumb" id="tth-${rowKey}-${idx}"
+             alt="${escapeHtml(plant.commonName)} thumbnail"
+             crossorigin="anonymous" />
+      </div>
+    </td>
+    <td class="td-name"><span class="t-common">${escapeHtml(plant.commonName)}</span></td>
+    <td class="td-latin">${escapeHtml(plant.latinName)}</td>
+    <td class="td-cat">${escapeHtml(CATEGORY_LABELS[rowKey] || '')}</td>
+    <td class="td-spec">${escapeHtml(plant.waterNeeds     || '—')}</td>
+    <td class="td-spec">${escapeHtml(plant.sunExposure    || '—')}</td>
+    <td class="td-spec">${escapeHtml(plant.hardinessZones || '—')}</td>
+    <td class="td-spec">${escapeHtml(plant.matureHeight   || '—')}</td>
+    <td class="td-spec">${escapeHtml(plant.growthRate     || '—')}</td>
+  `;
+  return tr;
+}
+
+function renderTableRows(plantList) {
+  el.tableBody.innerHTML = '';
+  const groups = [
+    { key: 'trees',  plants: plantList[CATEGORY_KEYS.trees]  },
+    { key: 'shrubs', plants: plantList[CATEGORY_KEYS.shrubs] },
+    { key: 'small',  plants: plantList[CATEGORY_KEYS.small]  },
+  ];
+  for (const { key, plants } of groups) {
+    const sep = document.createElement('tr');
+    sep.className = 'table-group-row';
+    sep.innerHTML = `<td colspan="9">${CATEGORY_LABELS[key]}</td>`;
+    el.tableBody.appendChild(sep);
+    plants.forEach((plant, idx) => el.tableBody.appendChild(createTableRow(plant, key, idx)));
+  }
+}
+
+// ──────────────────────────────────────────────────────────
+//  VIEW TOGGLE
+// ──────────────────────────────────────────────────────────
+
+function switchView(mode) {
+  if (mode === viewMode) return;
+  viewMode = mode;
+
+  const hasData = appState === 'COMPLETE' || appState === 'FETCHING_IMAGES';
+
+  el.btnGridView.classList.toggle('active',  mode === 'grid');
+  el.btnGridView.setAttribute('aria-pressed', String(mode === 'grid'));
+  el.btnTableView.classList.toggle('active', mode === 'table');
+  el.btnTableView.setAttribute('aria-pressed', String(mode === 'table'));
+
+  if (mode === 'grid') {
+    el.gridShell.hidden  = !hasData;
+    el.tableShell.hidden = true;
+  } else {
+    el.gridShell.hidden  = true;
+    el.tableShell.hidden = !hasData;
+  }
+}
+
+
 
 function setGeneratingUI(isGenerating) {
   el.generateBtn.disabled = isGenerating;
@@ -302,6 +399,9 @@ function setGeneratingUI(isGenerating) {
   el.generateBtnText.textContent = isGenerating ? 'Generating' : 'Generate';
   el.generateBtnIcon.textContent = isGenerating ? '⦿' : '↗';
   el.generateBtn.classList.toggle('loading', isGenerating);
+  // Disable view buttons while generating
+  el.btnGridView.disabled  = isGenerating;
+  el.btnTableView.disabled = isGenerating;
 }
 
 // ──────────────────────────────────────────────────────────
@@ -324,17 +424,23 @@ async function generate() {
   setGeneratingUI(true);
   clearGrid();
   el.gridShell.hidden  = true;
+  el.tableShell.hidden = true;
   showProgress(true);
   setProgress(5, 'Consulting Gemini…');
 
   try {
-    // ── Phase 1: Plant List (Gemini text) ────────────────
+    // ── Phase 1: Plant List ──────────────────────────────
     setProgress(10, `Building palette for "${vibe}"…`);
     const plantList = await fetchPlantList(vibe);
     setProgress(22, 'Populating cards…');
 
+    // Build both views
     renderSkeletonCards(plantList);
-    el.gridShell.hidden = false;
+    renderTableRows(plantList);
+
+    // Show whichever view is active
+    if (viewMode === 'grid') { el.gridShell.hidden = false; }
+    else                     { el.tableShell.hidden = false; }
 
     // ── Phase 2: Images (Wikipedia + iNaturalist) ────────
     // All 15 fired in parallel — they're just simple GET requests
@@ -383,12 +489,15 @@ async function generate() {
 
 el.generateBtn.addEventListener('click', generate);
 
+// View toggle buttons
+el.btnGridView.addEventListener('click',  () => switchView('grid'));
+el.btnTableView.addEventListener('click', () => switchView('table'));
+
 // Card flip — delegate clicks on the grid shell
 el.gridShell.addEventListener('click', (e) => {
   const card = e.target.closest('.plant-card');
   if (!card) return;
   card.classList.toggle('flipped');
-  // Update aria for accessibility
   const isFlipped = card.classList.contains('flipped');
   card.setAttribute('aria-pressed', String(isFlipped));
   const back = card.querySelector('.card-back');

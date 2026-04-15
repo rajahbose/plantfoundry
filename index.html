@@ -36,6 +36,38 @@
       </div>
     </div>
     <div class="topbar-right">
+
+      <!-- View toggle -->
+      <div class="view-toggle" role="group" aria-label="Display mode">
+
+        <button id="btn-grid-view" class="view-btn active" title="Grid view" aria-pressed="true" aria-label="Grid view">
+          <!-- 5-wide grid icon -->
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <rect x="1"   y="1"   width="2.4" height="6" rx="0.5" fill="currentColor"/>
+            <rect x="4.8" y="1"   width="2.4" height="6" rx="0.5" fill="currentColor"/>
+            <rect x="8.6" y="1"   width="2.4" height="6" rx="0.5" fill="currentColor"/>
+            <rect x="12.4" y="1"  width="2.4" height="6" rx="0.5" fill="currentColor"/>
+            <rect x="1"   y="9"   width="2.4" height="6" rx="0.5" fill="currentColor"/>
+            <rect x="4.8" y="9"   width="2.4" height="6" rx="0.5" fill="currentColor"/>
+            <rect x="8.6" y="9"   width="2.4" height="6" rx="0.5" fill="currentColor"/>
+            <rect x="12.4" y="9"  width="2.4" height="6" rx="0.5" fill="currentColor"/>
+          </svg>
+        </button>
+
+        <button id="btn-table-view" class="view-btn" title="Table view" aria-pressed="false" aria-label="Table view">
+          <!-- Table / list icon -->
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <rect x="1" y="1.5" width="14" height="1.5" rx="0.5" fill="currentColor"/>
+            <rect x="1" y="5"   width="14" height="1.5" rx="0.5" fill="currentColor"/>
+            <rect x="1" y="8.5" width="14" height="1.5" rx="0.5" fill="currentColor"/>
+            <rect x="1" y="12"  width="14" height="1.5" rx="0.5" fill="currentColor"/>
+            <!-- vertical divider -->
+            <rect x="5.5" y="1.5" width="1" height="12" rx="0.5" fill="currentColor" opacity="0.35"/>
+          </svg>
+        </button>
+
+      </div>
+
       <div class="status-label" id="status-label" aria-live="polite" aria-atomic="true"></div>
     </div>
   </header>
@@ -48,21 +80,40 @@
   <!-- ======= MAIN CONTENT ======= -->
   <main class="main-content" id="main-content">
 
-    <!-- PLANT GRID — Trees on top, Small Plants on bottom -->
-    <div class="grid-shell" id="grid-shell" hidden aria-label="Plant palette grid">
+    <!-- VIEW: GRID — Trees on top, Small Plants on bottom -->
+    <div class="grid-shell" id="grid-shell" hidden aria-label="Plant palette grid view">
 
-      <!-- ROW 1: Trees -->
       <div class="row-label" aria-label="Category: Trees">Trees</div>
       <div class="plant-grid" id="row-trees" role="list" aria-label="Trees"></div>
 
-      <!-- ROW 2: Shrubs & Bushes -->
       <div class="row-label" aria-label="Category: Shrubs &amp; Bushes">Shrubs &amp; Bushes</div>
       <div class="plant-grid" id="row-shrubs" role="list" aria-label="Shrubs and bushes"></div>
 
-      <!-- ROW 3: Small Plants & Grasses -->
       <div class="row-label" aria-label="Category: Small Plants &amp; Grasses">Small Plants &amp; Grasses</div>
       <div class="plant-grid" id="row-small" role="list" aria-label="Small plants and grasses"></div>
 
+    </div>
+
+    <!-- VIEW: TABLE -->
+    <div class="table-shell" id="table-shell" hidden aria-label="Plant palette table view">
+      <table class="plant-table" id="plant-table">
+        <thead>
+          <tr>
+            <th class="col-thumb"  aria-label="Photo"></th>
+            <th class="col-name">Name</th>
+            <th class="col-latin">Latin Name</th>
+            <th class="col-cat">Category</th>
+            <th class="col-spec">Water</th>
+            <th class="col-spec">Sun</th>
+            <th class="col-spec">Zones</th>
+            <th class="col-spec">Height</th>
+            <th class="col-spec">Growth</th>
+          </tr>
+        </thead>
+        <tbody id="plant-table-body">
+          <!-- Rows injected by JS -->
+        </tbody>
+      </table>
     </div>
 
   </main>

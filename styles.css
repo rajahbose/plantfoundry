@@ -183,6 +183,48 @@ body {
   white-space: nowrap;
 }
 
+/* --- View Toggle Buttons --- */
+.view-toggle {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.view-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 30px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--c-text-muted);
+  transition: background var(--t-fast), color var(--t-fast);
+  position: relative;
+}
+
+.view-btn + .view-btn {
+  border-left: 1px solid var(--c-border);
+}
+
+.view-btn:hover {
+  background: var(--c-surface-2);
+  color: var(--c-text);
+}
+
+.view-btn.active {
+  background: var(--c-accent);
+  color: #ffffff;
+}
+
+.view-btn.active:hover {
+  background: var(--c-accent-hover);
+}
+
 /* ====================================================
    PROGRESS BAR
    ==================================================== */
@@ -486,6 +528,151 @@ body {
   justify-content: center;
   font-size: 40px;
   background: var(--c-surface-2);
+}
+
+/* ====================================================
+   TABLE VIEW
+   ==================================================== */
+
+.table-shell {
+  height: calc(100dvh - var(--topbar-h));
+  overflow-y: auto;
+  padding: 0 20px 24px;
+}
+
+.table-shell[hidden] { display: none; }
+
+.plant-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--ff-ui);
+  font-size: 13px;
+}
+
+/* Sticky header */
+.plant-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: rgba(255,255,255,0.96);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.plant-table thead tr {
+  border-bottom: 1px solid var(--c-border-dark);
+}
+
+.plant-table th {
+  padding: 14px 12px 10px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--c-text-faint);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.plant-table th.col-thumb { width: 52px; padding-left: 0; }
+.plant-table th.col-name  { min-width: 140px; }
+.plant-table th.col-latin { min-width: 160px; }
+.plant-table th.col-cat   { min-width: 130px; }
+.plant-table th.col-spec  { min-width: 90px; }
+
+/* Category group header row */
+.table-group-row td {
+  padding: 20px 12px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--c-text-faint);
+  border-bottom: 1px solid var(--c-border);
+}
+
+.table-group-row:first-child td { padding-top: 14px; }
+
+/* Data rows */
+.plant-table tbody tr.plant-row {
+  border-bottom: 1px solid var(--c-border);
+  transition: background var(--t-fast);
+  cursor: default;
+}
+
+.plant-table tbody tr.plant-row:hover {
+  background: var(--c-surface);
+}
+
+.plant-table td {
+  padding: 10px 12px;
+  vertical-align: middle;
+  color: var(--c-text);
+}
+
+/* Thumbnail cell */
+.td-thumb {
+  padding: 6px 8px 6px 0 !important;
+  width: 52px;
+}
+
+.table-thumb {
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  border-radius: 4px;
+  display: block;
+  background: var(--c-surface-2);
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+
+.table-thumb.loaded { opacity: 1; }
+
+.table-thumb-skeleton {
+  width: 44px;
+  height: 44px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s linear infinite;
+  position: absolute;
+  top: 0; left: 0;
+}
+
+.td-thumb-wrap {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+}
+
+/* Name cell */
+.td-name .t-common {
+  font-family: var(--ff-serif);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--c-text);
+  line-height: 1.2;
+}
+
+/* Latin name cell */
+.td-latin {
+  font-style: italic;
+  font-size: 12.5px;
+  color: var(--c-text-muted);
+}
+
+/* Category badge */
+.td-cat {
+  font-size: 11.5px;
+  color: var(--c-text-muted);
+}
+
+/* Spec cells */
+.td-spec {
+  font-size: 12.5px;
+  color: var(--c-text);
 }
 
 /* ====================================================
