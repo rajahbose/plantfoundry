@@ -345,6 +345,9 @@ body {
 .card-front {
   background: var(--c-surface);
   transition: border-color var(--t-base);
+  /* Flex column so footer sits below the image */
+  display: flex;
+  flex-direction: column;
 }
 
 .plant-card:hover .card-front {
@@ -357,8 +360,10 @@ body {
 
 /* ---------- Card Image ---------- */
 .card-img-wrap {
-  position: absolute;
-  inset: 0;
+  /* Flex child — fills remaining space above the footer */
+  position: relative;
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -395,20 +400,15 @@ body {
   pointer-events: none;
 }
 
-/* ---------- Card Overlay / Text (front) ---------- */
-.card-overlay {
-  position: absolute;
-  bottom: 0; left: 0; right: 0;
-  padding: 28px 12px 12px;
-  background: linear-gradient(to top,
-    rgba(255,255,255,0.98) 0%,
-    rgba(255,255,255,0.85) 50%,
-    transparent 100%
-  );
+/* ---------- Card Footer (name area) ---------- */
+.card-footer {
+  flex-shrink: 0;
+  padding: 7px 10px 8px;
+  border-top: 1px solid var(--c-border);
+  background: #ffffff;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  pointer-events: none;
+  gap: 1px;
 }
 
 .card-common-name {
@@ -416,8 +416,11 @@ body {
   font-size: clamp(11px, 1.2vw, 15px);
   font-weight: 600;
   color: var(--c-text);
-  line-height: 1.25;
+  line-height: 1.2;
   letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .card-latin-name {
@@ -426,6 +429,80 @@ body {
   font-size: clamp(9px, 0.8vw, 11px);
   font-weight: 400;
   color: var(--c-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------- Refresh Button ---------- */
+.card-refresh-btn {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.88);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid rgba(0,0,0,0.10);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transform: scale(0.75);
+  transition: opacity var(--t-base), transform var(--t-base), background var(--t-fast), border-color var(--t-fast);
+  z-index: 5;
+  padding: 0;
+  color: var(--c-text);
+}
+
+/* Show on hover of un-flipped card */
+.plant-card:hover:not(.flipped) .card-refresh-btn {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.card-refresh-btn:hover {
+  background: rgba(255,255,255,1);
+  border-color: rgba(0,0,0,0.2);
+  transform: scale(1.08) !important;
+}
+
+.card-refresh-btn:disabled {
+  cursor: not-allowed;
+  opacity: 1 !important;
+  transform: scale(1) !important;
+}
+
+.card-refresh-btn.spinning svg {
+  animation: spin 0.75s linear infinite;
+}
+
+/* Keep refresh btn visible while card is loading */
+.plant-card.refreshing .card-refresh-btn {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* Dim image while refreshing */
+.plant-card.refreshing .card-img-wrap::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(255,255,255,0.55);
+  pointer-events: none;
+}
+
+/* Replace entrance animation */
+@keyframes card-replace {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.plant-card.replacing {
+  animation: card-replace 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 /* ---------- Card Back ---------- */

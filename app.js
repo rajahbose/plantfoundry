@@ -31,6 +31,8 @@ const CATEGORY_EMOJI = {
 
 let appState  = 'IDLE'; // IDLE | GENERATING_TEXT | FETCHING_IMAGES | COMPLETE
 let viewMode  = 'grid'; // 'grid' | 'table'
+let currentVibe    = '';
+let currentPalette = {}; // { trees: [], shrubs: [], small: [] }
 
 // ──────────────────────────────────────────────────────────
 //  DOM REFS
@@ -107,7 +109,7 @@ function createPlantCard(plant, rowKey, index) {
   card.innerHTML = `
     <div class="card-inner">
 
-      <!-- FRONT: photo + name overlay -->
+      <!-- FRONT: photo + name footer -->
       <div class="card-front">
         <div class="card-img-wrap">
           <div class="card-skeleton" id="skeleton-${rowKey}-${index}" aria-hidden="true"></div>
@@ -119,10 +121,22 @@ function createPlantCard(plant, rowKey, index) {
             crossorigin="anonymous"
           />
         </div>
-        <div class="card-overlay">
+        <div class="card-footer">
           <h2 class="card-common-name">${escapeHtml(plant.commonName)}</h2>
           <p class="card-latin-name">${escapeHtml(plant.latinName)}</p>
         </div>
+        <!-- Refresh button: swap this species -->
+        <button
+          class="card-refresh-btn"
+          aria-label="Replace ${escapeHtml(plant.commonName)} with an alternative species"
+          title="Replace species"
+          type="button"
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M12.5 2.5A6 6 0 1 0 13 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <polyline points="12.5,0.5 12.5,2.5 10.5,2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
       </div>
 
       <!-- BACK: plant specs -->
@@ -405,6 +419,7 @@ const CATEGORY_LABELS = {
 function createTableRow(plant, rowKey, idx) {
   const tr = document.createElement('tr');
   tr.className = 'plant-row';
+  tr.id = `trow-${rowKey}-${idx}`;
   tr.innerHTML = `
     <td class="td-thumb">
       <div class="td-thumb-wrap">
@@ -468,6 +483,67 @@ function switchView(mode) {
 
 
 
+// ──────────────────────────────────────────────────────────
+//  REPLACE SPECIES
+// ──────────────────────────────────────────────────────────
+
+async function replacePlant(rowKey, idx) {
+  if (appState !== 'COMPLETE' && appState !== 'FETCHING_IMAGES') return;
+
+  const card       = document.getElementById(`card-${rowKey}-${idx}`);
+  const refreshBtn = card?.querySelector('.card-refresh-btn');
+  if (!card || !refreshBtn || refreshBtn.disabled) return;
+
+  // Show loading state on the card
+  refreshBtn.disabled = true;
+  refreshBtn.classList.add('spinning');
+  card.classList.add('refreshing');
+  card.classList.remove('flipped');
+
+  // All current latin names except the one being replaced
+  const beingReplaced = currentPalette[rowKey]?.[idx];
+  const existing = Object.values(currentPalette)
+    .flat()
+    .filter(p => p.latinName !== beingReplaced?.latinName)
+    .map(p => p.latinName);
+
+  try {
+    const res = await fetch('/api/replace', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ vibe: currentVibe, category: rowKey, existing }),
+    });
+
+    const newPlant = await res.json();
+    if (!res.ok) throw new Error(newPlant.error);
+
+    // Update palette state
+    currentPalette[rowKey][idx] = newPlant;
+
+    // Swap card in grid (creates a fresh card element)
+    const newCard = createPlantCard(newPlant, rowKey, idx);
+    newCard.classList.add('replacing');
+    newCard.classList.remove('enter');
+    card.replaceWith(newCard);
+
+    // Swap matching row in table
+    const oldRow = document.getElementById(`trow-${rowKey}-${idx}`);
+    if (oldRow) oldRow.replaceWith(createTableRow(newPlant, rowKey, idx));
+
+    // Fetch image for the new species and inject into both views
+    const imageUrl = await fetchPlantImageUrl(newPlant);
+    injectCardImage(rowKey, idx, imageUrl);
+
+  } catch (err) {
+    console.error('replacePlant error:', err);
+    showToast(err.message || 'Could not find a replacement. Try again.', 'error', 5000);
+    // Restore the original card's state
+    refreshBtn.disabled = false;
+    refreshBtn.classList.remove('spinning');
+    card.classList.remove('refreshing');
+  }
+}
+
 function setGeneratingUI(isGenerating) {
   el.generateBtn.disabled = isGenerating;
   el.vibeInput.disabled   = isGenerating;
@@ -512,6 +588,14 @@ async function generate() {
     // Build both views
     renderSkeletonCards(plantList);
     renderTableRows(plantList);
+
+    // Save state for replace feature
+    currentVibe    = vibe;
+    currentPalette = {
+      trees:  [...plantList[CATEGORY_KEYS.trees]],
+      shrubs: [...plantList[CATEGORY_KEYS.shrubs]],
+      small:  [...plantList[CATEGORY_KEYS.small]],
+    };
 
     // Show whichever view is active
     if (viewMode === 'grid') { el.gridShell.hidden = false; }
@@ -568,10 +652,22 @@ el.generateBtn.addEventListener('click', generate);
 el.btnGridView.addEventListener('click',  () => switchView('grid'));
 el.btnTableView.addEventListener('click', () => switchView('table'));
 
-// Card flip — delegate clicks on the grid shell
+// Grid interactions — refresh button and card flip (single delegated listener)
 el.gridShell.addEventListener('click', (e) => {
+
+  // ── Refresh button: replace this species ──
+  const refreshBtn = e.target.closest('.card-refresh-btn');
+  if (refreshBtn) {
+    const card = refreshBtn.closest('.plant-card');
+    if (!card) return;
+    const [, rowKey, idx] = card.id.split('-');
+    replacePlant(rowKey, parseInt(idx));
+    return; // don't flip
+  }
+
+  // ── Card body: flip front/back ──
   const card = e.target.closest('.plant-card');
-  if (!card) return;
+  if (!card || card.classList.contains('refreshing')) return;
   card.classList.toggle('flipped');
   const isFlipped = card.classList.contains('flipped');
   card.setAttribute('aria-pressed', String(isFlipped));
