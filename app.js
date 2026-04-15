@@ -9,11 +9,7 @@
 //  CONFIG
 // ──────────────────────────────────────────────────────────
 
-const API_KEY    = 'YOUR_GEMINI_API_KEY_HERE'; // Replace with your Gemini API key
-const TEXT_MODEL = 'gemini-2.5-flash';
-const API_BASE   = 'https://generativelanguage.googleapis.com/v1beta';
-
-// Free image sources — no API key needed, CORS supported
+// Image sources — free, no key needed, CORS supported
 const WIKI_API = 'https://en.wikipedia.org/api/rest_v1/page/summary';
 const INAT_API = 'https://api.inaturalist.org/v1/taxa';
 
@@ -204,81 +200,25 @@ function injectCardImage(rowKey, index, imageUrl) {
 }
 
 // ──────────────────────────────────────────────────────────
-//  GEMINI TEXT API
+//  PLANT LIST — via /api/generate (Vercel serverless proxy)
 // ──────────────────────────────────────────────────────────
 
 async function fetchPlantList(vibe) {
-  const prompt = `You are an expert landscape botanist and horticulturist.
-Given the following landscape style, region, or vibe: "${vibe}"
+  const response = await fetch('/api/generate', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ vibe }),
+  });
 
-Generate exactly 15 plant species perfectly suited for this landscape.
-Divide them into three groups of 5:
-1. Small plants and ornamental grasses (groundcovers, perennials, grasses)
-2. Shrubs and bushes (flowering or structural shrubs, hedges)
-3. Trees (canopy or ornamental trees suited to this biome)
-
-Return ONLY a valid JSON object with NO markdown, NO explanation, NO commentary — just raw JSON in this exact schema:
-{
-  "smallPlantsAndGrasses": [
-    {
-      "commonName": "string",
-      "latinName": "string",
-      "waterNeeds": "Low | Moderate | High",
-      "sunExposure": "Full Sun | Part Shade | Full Shade | Full Sun to Part Shade",
-      "hardinessZones": "e.g. 5–9",
-      "matureHeight": "e.g. 12–18 in",
-      "growthRate": "Slow | Moderate | Fast",
-      "climate": "e.g. Mediterranean",
-      "landscapeNote": "One sentence on landscape use or standout quality."
-    },
-    ... (exactly 5)
-  ],
-  "shrubsAndBushes": [ ... (exactly 5, same fields) ],
-  "trees": [ ... (exactly 5, same fields) ]
-}
-
-Rules:
-- All species must be real, scientifically accurate plants.
-- latinName must be the correct binomial nomenclature (Genus species).
-- commonName should be the most widely used English common name.
-- Plants must be appropriate and authentic to the stated landscape style/region.
-- Do not repeat any species.`;
-
-  const response = await fetch(
-    `${API_BASE}/models/${TEXT_MODEL}:generateContent?key=${API_KEY}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: {
-          responseMimeType: 'application/json',
-          temperature: 0.7,
-        },
-      }),
-    }
-  );
+  const data = await response.json();
 
   if (!response.ok) {
-    const errBody = await response.json().catch(() => ({}));
-    throw new Error(errBody?.error?.message || `HTTP ${response.status}`);
+    throw new Error(data?.error || `Server error ${response.status}`);
   }
 
-  const data    = await response.json();
-  const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!rawText) throw new Error('Empty response from Gemini.');
-
-  const cleaned = rawText.replace(/```json\s*/gi, '').replace(/```/g, '').trim();
-  const parsed  = JSON.parse(cleaned);
-
-  for (const key of Object.values(CATEGORY_KEYS)) {
-    if (!Array.isArray(parsed[key]) || parsed[key].length !== 5) {
-      throw new Error(`Unexpected plant list structure.`);
-    }
-  }
-
-  return parsed;
+  return data;
 }
+
 
 // ──────────────────────────────────────────────────────────
 //  IMAGE FETCHING — Wikipedia + iNaturalist fallback
