@@ -479,6 +479,62 @@ body {
   text-overflow: ellipsis;
 }
 
+/* ---------- Card Meta Strip (water + sun) ---------- */
+.card-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 4px;
+  flex-wrap: nowrap;
+}
+
+.card-water {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.drop-icon {
+  display: block;
+  flex-shrink: 0;
+}
+
+.drop-filled {
+  color: #5b9bd5;
+}
+
+.drop-empty {
+  color: var(--c-border-dark);
+}
+
+.card-meta-divider {
+  font-size: 9px;
+  color: var(--c-border-dark);
+  line-height: 1;
+  margin: 0 1px;
+  flex-shrink: 0;
+}
+
+.card-sun {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-family: var(--ff-ui);
+  font-size: clamp(7.5px, 0.68vw, 9px);
+  color: var(--c-text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.sun-icon {
+  color: #e6a817;
+  flex-shrink: 0;
+}
+
+
 /* ---------- Refresh Button ---------- */
 .card-refresh-btn {
   position: absolute;

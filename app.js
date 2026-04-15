@@ -102,6 +102,29 @@ function showToast(message, type = 'info', duration = 4500) {
 //  CARD BUILDING
 // ──────────────────────────────────────────────────────────
 
+// ── Water drops helper (1 = Low, 2 = Moderate, 3 = High) ──────────────
+function waterDropsHtml(waterNeeds) {
+  const level = { 'Low': 1, 'Moderate': 2, 'High': 3 }[waterNeeds] ?? 0;
+  const drop = (filled) =>
+    `<svg class="drop-icon ${filled ? 'drop-filled' : 'drop-empty'}" width="8" height="10"
+         viewBox="0 0 8 10" fill="${filled ? 'currentColor' : 'none'}"
+         stroke="currentColor" stroke-width="1" stroke-linecap="round" aria-hidden="true">
+       <path d="M4 1 C4 1 0.5 5 0.5 7 a3.5 3.5 0 0 0 7 0 C7.5 5 4 1 4 1z"/>
+     </svg>`;
+  return [1, 2, 3].map(i => drop(i <= level)).join('');
+}
+
+// ── Sun exposure abbreviation ────────────────────────────────────────────
+function sunExposureShort(sunExposure) {
+  const map = {
+    'Full Sun':                  'Full Sun',
+    'Part Shade':                'Part Shade',
+    'Full Shade':                'Full Shade',
+    'Full Sun to Part Shade':    'Sun – Part Shade',
+  };
+  return map[sunExposure] || (sunExposure || '—');
+}
+
 function createPlantCard(plant, rowKey, index) {
   const card = document.createElement('article');
   card.className = `plant-card enter`;
@@ -128,6 +151,27 @@ function createPlantCard(plant, rowKey, index) {
         <div class="card-footer">
           <h2 class="card-common-name">${escapeHtml(plant.commonName)}</h2>
           <p class="card-latin-name">${escapeHtml(plant.latinName)}</p>
+          <div class="card-meta" aria-label="Water: ${escapeHtml(plant.waterNeeds || '')}, Sun: ${escapeHtml(plant.sunExposure || '')}">
+            <span class="card-water" title="Water: ${escapeHtml(plant.waterNeeds || '—')}">
+              ${waterDropsHtml(plant.waterNeeds)}
+            </span>
+            <span class="card-meta-divider" aria-hidden="true">·</span>
+            <span class="card-sun" title="Sun exposure: ${escapeHtml(plant.sunExposure || '—')}">
+              <svg class="sun-icon" width="9" height="9" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="4"/>
+                <line x1="12" y1="2"  x2="12" y2="5"/>
+                <line x1="12" y1="19" x2="12" y2="22"/>
+                <line x1="2"  y1="12" x2="5"  y2="12"/>
+                <line x1="19" y1="12" x2="22" y2="12"/>
+                <line x1="4.22"  y1="4.22"  x2="6.34"  y2="6.34"/>
+                <line x1="17.66" y1="17.66" x2="19.78" y2="19.78"/>
+                <line x1="4.22"  y1="19.78" x2="6.34"  y2="17.66"/>
+                <line x1="17.66" y1="6.34"  x2="19.78" y2="4.22"/>
+              </svg>
+              ${escapeHtml(sunExposureShort(plant.sunExposure))}
+            </span>
+          </div>
         </div>
         <!-- Refresh button: swap this species -->
         <button
