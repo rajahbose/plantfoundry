@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>PlantFoundry — AI Landscape Planner</title>
   <meta name="description" content="PlantFoundry uses Gemini AI to generate curated plant palettes for any landscape style, complete with botanical photography." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -138,6 +138,13 @@
     </div>
 
   </main>
+
+  <!-- ======= MOBILE PAGE DOTS ======= -->
+  <nav class="page-dots" id="page-dots" aria-label="Page navigation" hidden>
+    <button class="dot active" data-idx="0" aria-label="Input page" type="button"></button>
+    <button class="dot"        data-idx="1" aria-label="Grid view"  type="button"></button>
+    <button class="dot"        data-idx="2" aria-label="Table view" type="button"></button>
+  </nav>
 
   <!-- ======= TOAST NOTIFICATIONS ======= -->
   <div class="toast-container" id="toast-container" role="alert" aria-live="assertive"></div>

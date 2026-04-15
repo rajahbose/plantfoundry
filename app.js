@@ -34,6 +34,8 @@ let viewMode  = 'grid'; // 'grid' | 'table'
 let currentVibe    = { location: '', qualities: '' };
 let currentPalette = {}; // { trees: [], shrubs: [], small: [] }
 
+const isMobile = () => window.matchMedia('(max-width: 768px)').matches;
+
 // ──────────────────────────────────────────────────────────
 //  DOM REFS
 // ──────────────────────────────────────────────────────────
@@ -474,6 +476,11 @@ function renderTableRows(plantList) {
 // ──────────────────────────────────────────────────────────
 
 function switchView(mode) {
+  if (isMobile()) {
+    // On mobile, swiping = navigation; dot-click also calls this
+    scrollToMobilePage(mode === 'grid' ? 1 : 2);
+    return;
+  }
   if (mode === viewMode) return;
   viewMode = mode;
 
@@ -592,9 +599,15 @@ async function generate() {
 
   appState = 'GENERATING_TEXT';
   setGeneratingUI(true);
-  clearGrid();
-  el.gridShell.hidden  = true;
-  el.tableShell.hidden = true;
+  // Reset grid content
+  el.rowSmall.innerHTML = el.rowShrubs.innerHTML = el.rowTrees.innerHTML = '';
+  el.tableBody.innerHTML = '';
+  if (!isMobile()) {
+    el.gridShell.hidden  = true;
+    el.tableShell.hidden = true;
+  } else {
+    scrollToMobilePage(0); // scroll back to input page while generating
+  }
   showProgress(true);
   setProgress(5, 'Consulting Gemini…');
 
@@ -617,8 +630,15 @@ async function generate() {
     };
 
     // Show whichever view is active
-    if (viewMode === 'grid') { el.gridShell.hidden = false; }
-    else                     { el.tableShell.hidden = false; }
+    if (isMobile()) {
+      // Both shells are always visible on mobile (separate swipe pages)
+      el.gridShell.hidden = false;
+      el.tableShell.hidden = false;
+      setTimeout(() => scrollToMobilePage(1), 80); // auto-navigate to grid
+    } else {
+      if (viewMode === 'grid') { el.gridShell.hidden = false; }
+      else                     { el.tableShell.hidden = false; }
+    }
 
     // ── Phase 2: Images (Wikipedia + iNaturalist) ────────
     // All 15 fired in parallel — they're just simple GET requests
@@ -696,3 +716,72 @@ el.gridShell.addEventListener('click', (e) => {
   const back = card.querySelector('.card-back');
   if (back) back.setAttribute('aria-hidden', String(!isFlipped));
 });
+// ──────────────────────────────────────────────────────────
+//  MOBILE SWIPE INIT
+// ──────────────────────────────────────────────────────────
+
+function scrollToMobilePage(idx) {
+  const swiper = document.getElementById('mob-swiper');
+  if (swiper) swiper.scrollTo({ left: idx * window.innerWidth, behavior: 'smooth' });
+}
+
+function updateMobileDots(idx) {
+  document.querySelectorAll('.page-dots .dot').forEach((dot, i) => {
+    dot.classList.toggle('active', i === idx);
+  });
+}
+
+function initMobileSwipe() {
+  if (!isMobile()) return;
+
+  const body     = document.body;
+  const topbar   = document.querySelector('.topbar');
+  const mainEl   = document.getElementById('main-content');
+  const pageDots = document.getElementById('page-dots');
+
+  // Build the horizontal swipe container
+  const swiper = document.createElement('div');
+  swiper.id = 'mob-swiper';
+  swiper.className = 'mob-swiper';
+
+  // PAGE 1: topbar becomes the full-screen input home
+  swiper.appendChild(topbar);
+
+  // PAGE 2: grid shell
+  swiper.appendChild(el.gridShell);
+
+  // PAGE 3: table shell
+  swiper.appendChild(el.tableShell);
+
+  // Insert swiper at top of body (before remaining elements)
+  body.prepend(swiper);
+
+  // Remove the now-empty main-content wrapper
+  mainEl?.remove();
+
+  // Both shells visible on mobile (they live on separate pages)
+  el.gridShell.removeAttribute('hidden');
+  el.tableShell.removeAttribute('hidden');
+
+  // Show page dots
+  if (pageDots) pageDots.removeAttribute('hidden');
+
+  // Track scroll position and update dots
+  swiper.addEventListener('scroll', () => {
+    const idx = Math.round(swiper.scrollLeft / window.innerWidth);
+    updateMobileDots(idx);
+  }, { passive: true });
+
+  // Dot-click navigation
+  document.querySelectorAll('.page-dots .dot').forEach(dot => {
+    dot.addEventListener('click', () => {
+      const idx = parseInt(dot.dataset.idx);
+      scrollToMobilePage(idx);
+      if (idx === 1) switchView('grid');
+      if (idx === 2) switchView('table');
+    });
+  });
+}
+
+// Initialize mobile layout on load
+initMobileSwipe();

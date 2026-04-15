@@ -863,16 +863,247 @@ body {
 }
 
 /* ====================================================
-   RESPONSIVE
+   PAGE DOTS (desktop: hidden; shown via JS on mobile)
    ==================================================== */
 
-@media (max-width: 860px) {
-  .plant-grid { grid-template-columns: repeat(5, 1fr); gap: 6px; }
-  .vibe-form  { max-width: 300px; }
-  .grid-shell { padding: 4px 12px 8px; }
+.page-dots {
+  display: none;
+  position: fixed;
+  bottom: env(safe-area-inset-bottom, 18px);
+  left: 50%;
+  transform: translateX(-50%);
+  gap: 7px;
+  z-index: 999;
+  padding: 7px 12px;
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--c-border);
+  border-radius: 20px;
+  align-items: center;
 }
 
-@media (max-width: 560px) {
-  .topbar     { padding: 0 12px; }
-  .brand-name { display: none; }
+.page-dots[hidden] { display: none !important; }
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.18);
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.25s, transform 0.25s;
+  flex-shrink: 0;
+}
+
+.dot.active {
+  background: var(--c-accent);
+  transform: scale(1.3);
+}
+
+/* ====================================================
+   MOBILE — Full-screen swipe pages (≤ 768px)
+   ==================================================== */
+
+@media (max-width: 768px) {
+
+  /* Lock body — no scroll or bounce */
+  html, body {
+    overflow: hidden;
+    height: 100dvh;
+    overscroll-behavior: none;
+  }
+
+  /* --- Swipe container (injected by JS as .mob-swiper) --- */
+  .mob-swiper {
+    display: flex;
+    flex-direction: row;
+    width: 100vw;
+    height: 100dvh;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: none;
+    scrollbar-width: none;
+  }
+  .mob-swiper::-webkit-scrollbar { display: none; }
+
+  /* Every direct child of the swiper = one full-screen page */
+  .mob-swiper > * {
+    flex: 0 0 100vw;
+    min-width: 100vw;
+    max-width: 100vw;
+    height: 100dvh;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+    overflow: hidden;
+  }
+
+  /* Grid and table pages scroll vertically within their page */
+  .mob-swiper > .grid-shell,
+  .mob-swiper > .table-shell {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+  }
+
+  /* --- PAGE 1: Topbar → full-screen input home --- */
+  .topbar {
+    position: relative;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100dvh;
+    padding: 48px 28px calc(48px + env(safe-area-inset-bottom));
+    gap: 28px;
+  }
+
+  .topbar-left {
+    flex-direction: column;
+    align-items: center;
+    max-width: 420px;
+    width: 100%;
+    gap: 24px;
+    flex: none;
+  }
+
+  /* Brand: larger, centered, with tagline */
+  .brand {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 0;
+  }
+
+  .brand-name {
+    font-size: 36px;
+    display: block;
+  }
+
+  .brand::after {
+    content: 'AI Landscape Planner';
+    display: block;
+    font-family: var(--ff-ui);
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--c-text-faint);
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    margin-top: 6px;
+  }
+
+  /* Form: stack vertically */
+  .vibe-form {
+    flex-direction: column;
+    max-width: 100%;
+    width: 100%;
+    gap: 12px;
+  }
+
+  .vibe-field-group {
+    flex-direction: column;
+    height: auto;
+  }
+
+  .vibe-divider {
+    width: 100%;
+    height: 1px;
+    margin: 0;
+  }
+
+  .vibe-field {
+    padding: 10px 14px 11px;
+  }
+
+  /* font-size ≥ 16px prevents iOS Safari auto-zoom on focus */
+  .vibe-input {
+    font-size: 16px;
+  }
+
+  .generate-btn {
+    width: 100%;
+    justify-content: center;
+    height: 50px;
+    font-size: 15px;
+    border-radius: 10px;
+  }
+
+  /* Status label: float to bottom of input page */
+  .topbar-right {
+    position: absolute;
+    bottom: calc(28px + env(safe-area-inset-bottom));
+    left: 50%;
+    transform: translateX(-50%);
+    margin: 0;
+    gap: 0;
+    white-space: nowrap;
+  }
+
+  /* Hide view toggle (swiping = navigation on mobile) */
+  .view-toggle { display: none !important; }
+
+  /* --- PAGE 2: Grid --- */
+  .mob-swiper > .grid-shell {
+    display: block;
+    padding: 20px 12px calc(60px + env(safe-area-inset-bottom));
+    height: 100dvh;
+    /* override desktop grid-template-rows */
+    grid-template-rows: unset;
+  }
+
+  .plant-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .plant-card {
+    aspect-ratio: 2/3;
+    height: auto;
+  }
+
+  .row-label {
+    padding: 18px 2px 6px;
+    font-size: 10px;
+  }
+
+  /* Refresh button: always visible on mobile (no hover state) */
+  .plant-card .card-refresh-btn {
+    opacity: 1;
+    transform: scale(0.85);
+  }
+
+  /* Slightly smaller card text on mobile */
+  .card-common-name { font-size: 11px; }
+  .card-latin-name  { font-size: 9px; }
+
+  /* Card footer slightly more compact */
+  .card-footer {
+    padding: 5px 8px 6px;
+  }
+
+  /* --- PAGE 3: Table --- */
+  .mob-swiper > .table-shell {
+    padding-bottom: calc(60px + env(safe-area-inset-bottom));
+    height: 100dvh;
+    overflow-x: auto;
+    overflow-y: auto;
+  }
+
+  /* Progress bar: fixed overlay during loading */
+  .progress-bar-wrap {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    z-index: 1000;
+  }
+
+  /* Page dots: visible on mobile */
+  .page-dots {
+    display: flex;
+  }
+
 }
