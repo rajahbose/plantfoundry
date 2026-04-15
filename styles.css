@@ -582,16 +582,21 @@ body {
 
 /* Category group header row */
 .table-group-row td {
-  padding: 20px 12px 6px;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.09em;
+  padding: 36px 12px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--c-text-faint);
+  color: var(--c-text);
+  border-top: 1px solid var(--c-border-dark);
   border-bottom: 1px solid var(--c-border);
+  background: var(--c-surface);
 }
 
-.table-group-row:first-child td { padding-top: 14px; }
+.table-group-row:first-child td {
+  padding-top: 16px;
+  border-top: none;
+}
 
 /* Data rows */
 .plant-table tbody tr.plant-row {
