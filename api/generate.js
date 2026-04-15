@@ -6,9 +6,14 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { location, qualities } = req.body || {};
+  const { location, qualities, gridConfig } = req.body || {};
+
   if (!location || typeof location !== 'string' || location.trim().length === 0) {
     return res.status(400).json({ error: 'Missing or invalid location parameter.' });
+  }
+
+  if (!Array.isArray(gridConfig) || gridConfig.length === 0) {
+    return res.status(400).json({ error: 'Missing or invalid gridConfig parameter.' });
   }
 
   const apiKey = process.env.GEMINI_API_KEY;
@@ -20,52 +25,59 @@ export default async function handler(req, res) {
     ? `\nDesired landscape qualities and attributes: "${qualities.trim()}"`
     : '';
 
-  const prompt = `You are an expert landscape botanist and horticulturist with deep knowledge of regional flora.
+  const totalPlants = gridConfig.reduce((s, r) => s + (r.count || 0), 0);
+
+  // Build the grid description for the prompt
+  const gridDescription = gridConfig
+    .map(row => `  - ${row.label}: exactly ${row.count} plant${row.count !== 1 ? 's' : ''}`)
+    .join('\n');
+
+  // Build the expected JSON schema shape
+  const schemaRows = gridConfig.map(row => `    {
+      "key": "${row.key}",
+      "label": "${row.label}",
+      "plants": [
+        {
+          "commonName": "string",
+          "latinName": "string",
+          "waterNeeds": "Low | Moderate | High",
+          "sunExposure": "Full Sun | Part Shade | Full Shade | Full Sun to Part Shade",
+          "hardinessZones": "e.g. 5\u20139",
+          "matureHeight": "e.g. 4\u20136 ft",
+          "growthRate": "Slow | Moderate | Fast",
+          "climate": "e.g. Mediterranean",
+          "minTemp": "e.g. 20\u00b0F (-7\u00b0C)",
+          "predominantColors": "e.g. Silver-green foliage, purple flowers",
+          "landscapeNote": "One sentence on standout quality or best landscape use."
+        },
+        ... (exactly ${row.count})
+      ]
+    }`).join(',\n');
+
+  const prompt = `You are an expert landscape botanist and horticulturist with deep regional knowledge.
 
 Location / Region: "${location.trim()}"${qualitiesClause}
 
-Generate exactly 15 plant species that are:
-1. Native to or highly appropriate for the given location and climate
-2. Consistent with any stated qualities or attributes
-3. Regionally authentic — avoid generic or widely-available nursery plants unless they are genuinely the best fit
+The user has configured a plant palette grid with the following structure. You MUST follow it exactly:
+${gridDescription}
+Total plants: ${totalPlants}
 
-Divide them into three groups of exactly 5:
-- Small plants and ornamental grasses (groundcovers, perennials, ornamental grasses)
-- Shrubs and bushes (flowering shrubs, structural hedges, or multi-season shrubs)
-- Trees (canopy shade trees or ornamental trees suited to this biome)
-
-Return ONLY a valid JSON object with NO markdown, NO explanation, NO commentary — just raw JSON in this exact schema:
-{
-  "smallPlantsAndGrasses": [
-    {
-      "commonName": "string",
-      "latinName": "string",
-      "waterNeeds": "Low | Moderate | High",
-      "sunExposure": "Full Sun | Part Shade | Full Shade | Full Sun to Part Shade",
-      "hardinessZones": "e.g. 5–9",
-      "matureHeight": "e.g. 12–18 in",
-      "growthRate": "Slow | Moderate | Fast",
-      "climate": "e.g. Mediterranean",
-      "minTemp": "e.g. 20°F (-7°C)",
-      "predominantColors": "e.g. Silver-green foliage, purple flowers",
-      "landscapeNote": "One sentence on its standout quality or best landscape use."
-    },
-    ... (exactly 5)
-  ],
-  "shrubsAndBushes": [ ... (exactly 5, same fields) ],
-  "trees": [ ... (exactly 5, same fields) ]
-}
-
-Rules:
+Guidelines:
+- Each plant must be native to or genuinely appropriate for the stated location and climate.
+- If qualities are specified, each plant should reflect at least one of those qualities.
+- IMPORTANT: If the user named any specific plant species (by common name or Latin name) in the Location or Qualities fields, those species MUST appear in the palette. Place each named species in the most botanically appropriate row. Fill remaining slots with complementary species.
 - All species must be real, scientifically accurate plants.
 - latinName must be correct binomial nomenclature (Genus species or Genus species 'Cultivar').
-- commonName should be the most widely recognized English common name.
-- Species must genuinely suit the stated location's climate, soil, and rainfall patterns.
-- If qualities are specified, each plant should reflect at least one of those qualities.
-- IMPORTANT: If the user has named any specific plant species (by common name or Latin name) in the Location or Qualities fields, those species MUST appear in the output palette. Place each named species in the most botanically appropriate category. Fill the remaining slots in that category (and all other categories) with complementary species that suit the location and qualities.
-- minTemp should be the lowest temperature the plant can survive, expressed as both °F and °C.
-- predominantColors should describe the main foliage, flower, or seasonal colors in plain English.
-- Do not repeat any species.`;
+- Do not repeat any species across any row.
+- minTemp: lowest survivable temperature in both °F and °C.
+- predominantColors: main foliage, flower, and seasonal colors in plain English.
+
+Return ONLY a valid JSON object — no markdown, no code fences, no explanation:
+{
+  "rows": [
+${schemaRows}
+  ]
+}`;
 
   try {
     const geminiRes = await fetch(
@@ -85,22 +97,27 @@ Rules:
 
     if (!geminiRes.ok) {
       const errBody = await geminiRes.json().catch(() => ({}));
-      const msg = errBody?.error?.message || `Gemini HTTP ${geminiRes.status}`;
-      return res.status(502).json({ error: msg });
+      return res.status(502).json({ error: errBody?.error?.message || `Gemini HTTP ${geminiRes.status}` });
     }
 
     const data    = await geminiRes.json();
     const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!rawText) {
-      return res.status(502).json({ error: 'Empty response from Gemini.' });
-    }
+    if (!rawText) return res.status(502).json({ error: 'Empty response from Gemini.' });
 
     const cleaned = rawText.replace(/```json\s*/gi, '').replace(/```/g, '').trim();
     const parsed  = JSON.parse(cleaned);
 
-    for (const key of ['smallPlantsAndGrasses', 'shrubsAndBushes', 'trees']) {
-      if (!Array.isArray(parsed[key]) || parsed[key].length !== 5) {
-        return res.status(502).json({ error: 'Unexpected plant list structure from Gemini.' });
+    if (!Array.isArray(parsed.rows) || parsed.rows.length !== gridConfig.length) {
+      return res.status(502).json({ error: 'Gemini returned wrong row count — please try again.' });
+    }
+
+    for (let i = 0; i < gridConfig.length; i++) {
+      const expected = gridConfig[i].count;
+      const got      = parsed.rows[i]?.plants?.length;
+      if (got !== expected) {
+        return res.status(502).json({
+          error: `Row "${gridConfig[i].label}" has ${got} plants but expected ${expected}. Please try again.`
+        });
       }
     }
 
