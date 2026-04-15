@@ -61,6 +61,7 @@ const el = {
 
   btnGridView:     document.getElementById('btn-grid-view'),
   btnTableView:    document.getElementById('btn-table-view'),
+  exportBtn:       document.getElementById('export-btn'),
 
   toastContainer:  document.getElementById('toast-container'),
 };
@@ -626,9 +627,10 @@ function setGeneratingUI(isGenerating) {
   el.generateBtnText.textContent = isGenerating ? 'Generating' : 'Generate';
   el.generateBtnIcon.textContent = isGenerating ? '⦿' : '↗';
   el.generateBtn.classList.toggle('loading', isGenerating);
-  // Disable view buttons while generating
+  // Disable view + export buttons while generating
   el.btnGridView.disabled  = isGenerating;
   el.btnTableView.disabled = isGenerating;
+  if (isGenerating) el.exportBtn.disabled = true;
 }
 
 // ──────────────────────────────────────────────────────────
@@ -719,6 +721,7 @@ async function generate() {
       : currentVibe.location;
     setProgress(100, `Done — ${vibeLabel}`);
     setGeneratingUI(false);
+    el.exportBtn.disabled = false; // enable export now that palette is ready
 
     setTimeout(() => {
       showProgress(false);
@@ -740,6 +743,7 @@ async function generate() {
 // ──────────────────────────────────────────────────────────
 
 el.generateBtn.addEventListener('click', generate);
+el.exportBtn.addEventListener('click', exportPDF);
 
 // View toggle buttons
 el.btnGridView.addEventListener('click',  () => switchView('grid'));
@@ -836,3 +840,134 @@ function initMobileSwipe() {
 
 // Initialize mobile layout on load
 initMobileSwipe();
+
+// ──────────────────────────────────────────────────────────
+//  PDF EXPORT
+// ──────────────────────────────────────────────────────────
+
+/**
+ * Fit an image (imgW × imgH pixels) into a page (pageW × pageH mm),
+ * returning { x, y, w, h } in mm with the image centered and margins equal.
+ */
+function fitToPage(imgW, imgH, pageW, pageH, margin = 8) {
+  const availW = pageW - margin * 2;
+  const availH = pageH - margin * 2;
+  const scale  = Math.min(availW / imgW, availH / imgH);
+  const w = imgW * scale;
+  const h = imgH * scale;
+  const x = margin + (availW - w) / 2;
+  const y = margin + (availH - h) / 2;
+  return { x, y, w, h };
+}
+
+/**
+ * Temporarily expands an element to its full natural height,
+ * captures it with html2canvas, then restores the original styles.
+ */
+async function captureShell(shell) {
+  const wasHidden  = shell.hasAttribute('hidden');
+  const savedStyle = shell.getAttribute('style') || '';
+
+  // Unclip the shell so the full content is renderable
+  shell.removeAttribute('hidden');
+  shell.style.setProperty('height',     'auto',    'important');
+  shell.style.setProperty('max-height', 'none',    'important');
+  shell.style.setProperty('overflow',   'visible', 'important');
+
+  // Unclip ancestors too (main-content)
+  const main = document.getElementById('main-content');
+  const mainSaved = main ? main.getAttribute('style') || '' : null;
+  if (main) {
+    main.style.setProperty('height',   'auto',    'important');
+    main.style.setProperty('overflow', 'visible', 'important');
+  }
+
+  // Temporarily unset sticky on table header (html2canvas doesn't handle sticky well)
+  const thead = shell.querySelector('thead');
+  const theadPos = thead ? thead.style.position : null;
+  if (thead) thead.style.position = 'relative';
+
+  // Wait one frame for layout to settle
+  await new Promise(r => requestAnimationFrame(r));
+  await new Promise(r => requestAnimationFrame(r));
+
+  const canvas = await html2canvas(shell, {
+    scale:           3,          // ~250 DPI equivalent on a 17" page
+    useCORS:         true,       // load cross-origin images via CORS
+    allowTaint:      false,      // skip images that fail CORS rather than tainting
+    backgroundColor: '#ffffff',
+    logging:         false,
+    imageTimeout:    10000,
+  });
+
+  // Restore everything
+  if (wasHidden) shell.setAttribute('hidden', '');
+  shell.setAttribute('style', savedStyle);
+  if (main && mainSaved !== null) main.setAttribute('style', mainSaved);
+  if (thead && theadPos !== null) thead.style.position = theadPos;
+
+  return canvas;
+}
+
+async function exportPDF() {
+  if (appState !== 'COMPLETE') return;
+
+  const { jsPDF } = window.jspdf;
+
+  // 11 × 17 (tabloid) landscape in mm
+  const PAGE_W = 431.8; // 17 inches
+  const PAGE_H = 279.4; // 11 inches
+
+  el.exportBtn.disabled = true;
+  el.exportBtn.querySelector('.export-btn-text').textContent = 'Exporting…';
+  showToast('Rendering pages — this may take a moment…', 'info', 6000);
+
+  try {
+    const doc = new jsPDF({
+      orientation: 'landscape',
+      unit:        'mm',
+      format:      [PAGE_W, PAGE_H],
+    });
+
+    const vibeLabel = currentVibe.qualities
+      ? `${currentVibe.location} · ${currentVibe.qualities}`
+      : currentVibe.location;
+
+    // Small branding footer (jsPDF text, not rasterized)
+    const addFooter = (pageLabel) => {
+      doc.setFontSize(6);
+      doc.setTextColor(190, 190, 190);
+      doc.text(
+        `PlantFoundry  ·  ${vibeLabel}  ·  ${pageLabel}`,
+        PAGE_W / 2, PAGE_H - 3,
+        { align: 'center' }
+      );
+    };
+
+    // ── Page 1: Grid ─────────────────────────────────────
+    const gridCanvas = await captureShell(el.gridShell);
+    const gp = fitToPage(gridCanvas.width, gridCanvas.height, PAGE_W, PAGE_H);
+    doc.addImage(gridCanvas.toDataURL('image/jpeg', 0.92), 'JPEG', gp.x, gp.y, gp.w, gp.h);
+    addFooter('Plant Grid');
+
+    // ── Page 2: Table ────────────────────────────────────
+    doc.addPage([PAGE_W, PAGE_H], 'landscape');
+    const tableCanvas = await captureShell(el.tableShell);
+    const tp = fitToPage(tableCanvas.width, tableCanvas.height, PAGE_W, PAGE_H);
+    doc.addImage(tableCanvas.toDataURL('image/jpeg', 0.92), 'JPEG', tp.x, tp.y, tp.w, tp.h);
+    addFooter('Plant Table');
+
+    // ── Download ─────────────────────────────────────────
+    const safeName = (currentVibe.location || 'palette').replace(/[^a-z0-9]/gi, '_').replace(/__+/g, '_');
+    doc.save(`PlantFoundry_${safeName}.pdf`);
+
+    showToast('PDF exported!', 'success', 4000);
+
+  } catch (err) {
+    console.error('exportPDF error:', err);
+    showToast('PDF export failed — please try again.', 'error', 6000);
+  } finally {
+    el.exportBtn.disabled = false;
+    el.exportBtn.querySelector('.export-btn-text').textContent = 'Export PDF';
+  }
+}
