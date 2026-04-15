@@ -99,9 +99,18 @@
   <!-- ======= MAIN CONTENT ======= -->
   <main class="main-content" id="main-content">
 
-    <!-- VIEW: GRID — rows injected by JS based on gridConfig -->
-    <div class="grid-shell" id="grid-shell" aria-label="Plant palette grid — configure then generate">
-      <!-- Row containers are built dynamically by initConfigGrid() -->
+    <!-- VIEW: GRID — Trees on top, Small Plants on bottom -->
+    <div class="grid-shell" id="grid-shell" hidden aria-label="Plant palette grid view">
+
+      <div class="row-label" aria-label="Category: Trees">Trees</div>
+      <div class="plant-grid" id="row-trees" role="list" aria-label="Trees"></div>
+
+      <div class="row-label" aria-label="Category: Shrubs &amp; Bushes">Shrubs &amp; Bushes</div>
+      <div class="plant-grid" id="row-shrubs" role="list" aria-label="Shrubs and bushes"></div>
+
+      <div class="row-label" aria-label="Category: Small Plants &amp; Grasses">Small Plants &amp; Grasses</div>
+      <div class="plant-grid" id="row-small" role="list" aria-label="Small plants and grasses"></div>
+
     </div>
 
     <!-- VIEW: TABLE -->

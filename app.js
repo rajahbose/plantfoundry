@@ -9,13 +9,21 @@
 //  CONFIG
 // ──────────────────────────────────────────────────────────
 
+// Image sources — free, no key needed, CORS supported
 const WIKI_API = 'https://en.wikipedia.org/api/rest_v1/page/summary';
 const INAT_API = 'https://api.inaturalist.org/v1/taxa';
 
-const MIN_COUNT = 1;
-const MAX_COUNT = 8;
-const MIN_ROWS  = 1;
-const MAX_ROWS  = 6;
+const CATEGORY_KEYS = {
+  small:  'smallPlantsAndGrasses',
+  shrubs: 'shrubsAndBushes',
+  trees:  'trees',
+};
+
+const CATEGORY_EMOJI = {
+  small:  '🌾',
+  shrubs: '🌿',
+  trees:  '🌳',
+};
 
 // ──────────────────────────────────────────────────────────
 //  STATE
@@ -23,17 +31,8 @@ const MAX_ROWS  = 6;
 
 let appState  = 'IDLE'; // IDLE | GENERATING_TEXT | FETCHING_IMAGES | COMPLETE
 let viewMode  = 'grid'; // 'grid' | 'table'
-
 let currentVibe    = { location: '', qualities: '' };
-let currentPalette = []; // Array<{ key, label, plants: [] }>
-
-// Live grid configuration — drives placeholder layout and prompt
-let gridConfig = [
-  { key: 'row_0', label: 'Trees',                    count: 5 },
-  { key: 'row_1', label: 'Shrubs & Bushes',          count: 5 },
-  { key: 'row_2', label: 'Small Plants & Grasses',   count: 5 },
-];
-let _nextRowKey = 3;
+let currentPalette = {}; // { trees: [], shrubs: [], small: [] }
 
 const isMobile = () => window.matchMedia('(max-width: 768px)').matches;
 
@@ -53,6 +52,9 @@ const el = {
   statusLabel:     document.getElementById('status-label'),
 
   gridShell:       document.getElementById('grid-shell'),
+  rowSmall:        document.getElementById('row-small'),
+  rowShrubs:       document.getElementById('row-shrubs'),
+  rowTrees:        document.getElementById('row-trees'),
 
   tableShell:      document.getElementById('table-shell'),
   tableBody:       document.getElementById('plant-table-body'),
@@ -97,22 +99,12 @@ function showToast(message, type = 'info', duration = 4500) {
 }
 
 // ──────────────────────────────────────────────────────────
-//  UTILITIES
-// ──────────────────────────────────────────────────────────
-
-function escapeHtml(str) {
-  const d = document.createElement('div');
-  d.textContent = String(str ?? '');
-  return d.innerHTML;
-}
-
-// ──────────────────────────────────────────────────────────
 //  CARD BUILDING
 // ──────────────────────────────────────────────────────────
 
 function createPlantCard(plant, rowKey, index) {
   const card = document.createElement('article');
-  card.className = 'plant-card enter';
+  card.className = `plant-card enter`;
   card.style.animationDelay = `${index * 0.06}s`;
   card.setAttribute('role', 'listitem');
   card.setAttribute('aria-label', `${plant.commonName}, ${plant.latinName}`);
@@ -200,229 +192,20 @@ function createPlantCard(plant, rowKey, index) {
   return card;
 }
 
-function buildPlaceholderCard(rowKey, idx) {
-  const card = document.createElement('article');
-  card.className = 'plant-card placeholder-card';
-  card.id = `card-${rowKey}-${idx}`;
-  card.setAttribute('role', 'listitem');
-  card.setAttribute('aria-label', 'Empty plant slot');
-  card.innerHTML = `
-    <div class="card-front placeholder-front">
-      <div class="placeholder-body">
-        <svg class="placeholder-leaf" width="22" height="22" viewBox="0 0 24 24" fill="none"
-             stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"/>
-          <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/>
-        </svg>
-      </div>
-    </div>
-  `;
-  return card;
+function escapeHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
 }
 
-// ──────────────────────────────────────────────────────────
-//  GRID CONFIG BUILDER  (always-visible interactive grid)
-// ──────────────────────────────────────────────────────────
-
-function initConfigGrid() {
-  el.gridShell.innerHTML = '';
-  for (const row of gridConfig) {
-    el.gridShell.appendChild(buildRowContainer(row, true));
-  }
-  el.gridShell.appendChild(buildAddRowButton());
-}
-
-function buildRowContainer(rowConfig, withPlaceholders = true) {
-  const container = document.createElement('div');
-  container.className = 'row-container';
-  container.id = `row-container-${rowConfig.key}`;
-
-  container.appendChild(buildRowHeader(rowConfig));
-
-  const grid = document.createElement('div');
-  grid.className = 'plant-grid';
-  grid.id = `row-${rowConfig.key}`;
-  grid.setAttribute('role', 'list');
-
-  if (withPlaceholders) {
-    for (let i = 0; i < rowConfig.count; i++) {
-      grid.appendChild(buildPlaceholderCard(rowConfig.key, i));
-    }
-  }
-
-  container.appendChild(grid);
-  return container;
-}
-
-function buildRowHeader(rowConfig) {
-  const header = document.createElement('div');
-  header.className = 'row-header';
-
-  const canDelete = gridConfig.length > MIN_ROWS;
-
-  header.innerHTML = `
-    <div class="row-header-left">
-      <span
-        class="row-label row-label-editable"
-        id="label-${rowConfig.key}"
-        contenteditable="true"
-        data-key="${rowConfig.key}"
-        spellcheck="false"
-        role="textbox"
-        aria-label="Category name"
-      >${escapeHtml(rowConfig.label)}</span>
-    </div>
-    <div class="row-header-right">
-      <div class="row-count-controls" aria-label="Number of plants in this row">
-        <button class="row-count-btn" data-key="${rowConfig.key}" data-delta="-1"
-                aria-label="Fewer plants" type="button" title="Remove column">−</button>
-        <span class="row-count-display" id="count-${rowConfig.key}">${rowConfig.count}</span>
-        <button class="row-count-btn" data-key="${rowConfig.key}" data-delta="1"
-                aria-label="More plants" type="button" title="Add column">+</button>
-      </div>
-      ${canDelete ? `
-        <button class="row-delete-btn" data-key="${rowConfig.key}"
-                aria-label="Remove ${escapeHtml(rowConfig.label)} row" title="Remove row" type="button">
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
-            <line x1="1" y1="1" x2="9" y2="9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-            <line x1="9" y1="1" x2="1" y2="9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-          </svg>
-        </button>
-      ` : ''}
-    </div>
-  `;
-  return header;
-}
-
-function buildAddRowButton() {
-  const wrap = document.createElement('div');
-  wrap.className = 'add-row-wrap';
-  wrap.id = 'add-row-wrap';
-  const disabled = gridConfig.length >= MAX_ROWS;
-  wrap.innerHTML = `
-    <button class="add-row-btn" id="add-row-btn" type="button"
-            aria-label="Add a new plant category"
-            ${disabled ? 'disabled aria-disabled="true"' : ''}>
-      <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true">
-        <line x1="5.5" y1="1" x2="5.5" y2="10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-        <line x1="1" y1="5.5" x2="10" y2="5.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-      </svg>
-      Add Category
-    </button>
-  `;
-  return wrap;
-}
-
-// ── Row count stepper ─────────────────────────────────────
-
-function handleRowCountChange(key, delta) {
-  if (appState === 'GENERATING_TEXT') return;
-  const row = gridConfig.find(r => r.key === key);
-  if (!row) return;
-
-  const newCount = Math.max(MIN_COUNT, Math.min(MAX_COUNT, row.count + delta));
-  if (newCount === row.count) return;
-  row.count = newCount;
-
-  const countDisplay = document.getElementById(`count-${key}`);
-  if (countDisplay) countDisplay.textContent = newCount;
-
-  const grid = document.getElementById(`row-${key}`);
-  if (!grid) return;
-
-  const currentCount = grid.children.length;
-  if (newCount > currentCount) {
-    for (let i = currentCount; i < newCount; i++) {
-      // If card exists (real card from prior gen), add placeholder; else placeholder too
-      grid.appendChild(buildPlaceholderCard(key, i));
-    }
-  } else {
-    while (grid.children.length > newCount) grid.lastChild.remove();
-  }
-}
-
-// ── Row delete ────────────────────────────────────────────
-
-function handleRowDelete(key) {
-  if (appState === 'GENERATING_TEXT') return;
-  if (gridConfig.length <= MIN_ROWS) return;
-
-  gridConfig = gridConfig.filter(r => r.key !== key);
-  document.getElementById(`row-container-${key}`)?.remove();
-
-  // If we're down to 1, re-render all to hide the delete buttons
-  if (gridConfig.length === MIN_ROWS) initConfigGrid();
-}
-
-// ── Add row ───────────────────────────────────────────────
-
-function handleAddRow() {
-  if (appState === 'GENERATING_TEXT') return;
-  if (gridConfig.length >= MAX_ROWS) return;
-
-  const key    = `row_${_nextRowKey++}`;
-  const newRow = { key, label: 'New Category', count: 3 };
-  gridConfig.push(newRow);
-
-  const addWrap = document.getElementById('add-row-wrap');
-  el.gridShell.insertBefore(buildRowContainer(newRow, true), addWrap);
-
-  // If just hit max, disable the Add button
-  if (gridConfig.length >= MAX_ROWS) {
-    const btn = document.getElementById('add-row-btn');
-    if (btn) { btn.disabled = true; btn.setAttribute('aria-disabled', 'true'); }
-  }
-
-  // If went from 1→2, re-render all to show delete buttons
-  if (gridConfig.length === 2) initConfigGrid();
-
-  // Focus + select-all the new label for immediate rename
-  const labelEl = document.getElementById(`label-${key}`);
-  if (labelEl) {
-    labelEl.focus();
-    const sel = window.getSelection();
-    const range = document.createRange();
-    range.selectNodeContents(labelEl);
-    sel.removeAllRanges();
-    sel.addRange(range);
-  }
-}
-
-// ── Row label contenteditable sync ────────────────────────
-
-el.gridShell.addEventListener('input', (e) => {
-  const label = e.target.closest('.row-label-editable');
-  if (!label) return;
-  const key = label.dataset.key;
-  const row = gridConfig.find(r => r.key === key);
-  if (row) row.label = label.textContent.trim() || row.label;
-});
-
-el.gridShell.addEventListener('blur', (e) => {
-  const label = e.target.closest('.row-label-editable');
-  if (!label) return;
-  const key = label.dataset.key;
-  const row = gridConfig.find(r => r.key === key);
-  if (!row) return;
-  const text = label.textContent.trim();
-  label.textContent = text || row.label; // revert if empty
-  if (text) row.label = text;
-}, true); // use capture for blur
-
-// Prevent Enter from inserting newlines in labels
-el.gridShell.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && e.target.closest('.row-label-editable')) {
-    e.preventDefault();
-    e.target.blur();
-  }
-});
-
-// ──────────────────────────────────────────────────────────
-//  IMAGE INJECTION
-// ──────────────────────────────────────────────────────────
-
+/**
+ * Injects an image URL into the card AND the matching table thumbnail.
+ * @param {string}      rowKey
+ * @param {number}      index
+ * @param {string|null} imageUrl
+ */
 function injectCardImage(rowKey, index, imageUrl) {
-  // Card image
+  // ── Card front image ──
   const skeleton = document.getElementById(`skeleton-${rowKey}-${index}`);
   const img      = document.getElementById(`img-${rowKey}-${index}`);
   const card     = document.getElementById(`card-${rowKey}-${index}`);
@@ -433,53 +216,72 @@ function injectCardImage(rowKey, index, imageUrl) {
       const fail = document.createElement('div');
       fail.className = 'card-img-fail';
       fail.setAttribute('aria-hidden', 'true');
-      fail.textContent = '🌿';
-      card.querySelector('.card-img-wrap')?.appendChild(fail);
+      fail.textContent = CATEGORY_EMOJI[rowKey] || '🌿';
+      card.querySelector('.card-img-wrap').appendChild(fail);
     } else {
       img.src = imageUrl;
-      img.onload  = () => { img.classList.add('loaded'); skeleton.classList.add('hidden'); };
+      img.onload = () => {
+        img.classList.add('loaded');
+        skeleton.classList.add('hidden');
+      };
       img.onerror = () => injectCardImage(rowKey, index, null);
     }
   }
 
-  // Table thumbnail
+  // ── Table thumbnail ──
   const thumbSkeleton = document.getElementById(`tsk-${rowKey}-${index}`);
   const thumb         = document.getElementById(`tth-${rowKey}-${index}`);
   if (thumb) {
     if (imageUrl) {
       thumb.src = imageUrl;
-      thumb.onload  = () => { thumb.classList.add('loaded'); thumbSkeleton?.remove(); };
-      thumb.onerror = () => thumbSkeleton?.remove();
+      thumb.onload = () => {
+        thumb.classList.add('loaded');
+        if (thumbSkeleton) thumbSkeleton.remove();
+      };
+      thumb.onerror = () => { if (thumbSkeleton) thumbSkeleton.remove(); };
     } else {
-      thumbSkeleton?.remove();
+      if (thumbSkeleton) thumbSkeleton.remove();
     }
   }
 }
 
 // ──────────────────────────────────────────────────────────
-//  PLANT LIST — /api/generate
+//  PLANT LIST — via /api/generate (Vercel serverless proxy)
 // ──────────────────────────────────────────────────────────
 
-async function fetchPlantList(location, qualities, config) {
+async function fetchPlantList(location, qualities) {
   const response = await fetch('/api/generate', {
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify({ location, qualities, gridConfig: config }),
+    body:    JSON.stringify({ location, qualities }),
   });
+
   const data = await response.json();
-  if (!response.ok) throw new Error(data?.error || `Server error ${response.status}`);
-  return data; // { rows: [{ key, label, plants: [] }] }
+
+  if (!response.ok) {
+    throw new Error(data?.error || `Server error ${response.status}`);
+  }
+
+  return data;
 }
+
 
 // ──────────────────────────────────────────────────────────
 //  IMAGE FETCHING — 5-source waterfall
+//  Wikipedia (latin) → Wikipedia (common) →
+//  Wikimedia Commons → iNaturalist → GBIF
 // ──────────────────────────────────────────────────────────
 
+/**
+ * Source 1 & 2: Wikipedia REST API.
+ * Tries the latin name first, then the common name.
+ */
 async function fetchFromWikipedia(plant) {
   const attempts = [plant.latinName, plant.commonName];
   for (const title of attempts) {
     try {
-      const res  = await fetch(`${WIKI_API}/${encodeURIComponent(title)}`, { headers: { Accept: 'application/json' } });
+      const url = `${WIKI_API}/${encodeURIComponent(title)}`;
+      const res  = await fetch(url, { headers: { Accept: 'application/json' } });
       if (!res.ok) continue;
       const data = await res.json();
       const img  = data.originalimage?.source || data.thumbnail?.source;
@@ -489,45 +291,78 @@ async function fetchFromWikipedia(plant) {
   return null;
 }
 
+/**
+ * Source 3: Wikimedia Commons image search.
+ * Searches for a freely-licensed photo matching the latin name.
+ */
 async function fetchFromWikimediaCommons(plant) {
   try {
     const url = [
       'https://commons.wikimedia.org/w/api.php',
-      '?action=query&generator=search',
+      '?action=query',
+      '&generator=search',
       `&gsrsearch=${encodeURIComponent(plant.latinName)}`,
-      '&gsrnamespace=6&gsrlimit=3&prop=imageinfo&iiprop=url&iiurlwidth=800&format=json&origin=*',
+      '&gsrnamespace=6',   // File namespace only
+      '&gsrlimit=3',
+      '&prop=imageinfo',
+      '&iiprop=url',
+      '&iiurlwidth=800',
+      '&format=json',
+      '&origin=*',
     ].join('');
-    const res   = await fetch(url, { headers: { Accept: 'application/json' } });
+    const res  = await fetch(url, { headers: { Accept: 'application/json' } });
     if (!res.ok) return null;
     const data  = await res.json();
     const pages = data.query?.pages;
     if (!pages) return null;
+    // Pick first result that has an image URL
     for (const page of Object.values(pages)) {
       const src = page.imageinfo?.[0]?.thumburl || page.imageinfo?.[0]?.url;
       if (src) return src;
     }
     return null;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
+/**
+ * Source 4: iNaturalist taxa API.
+ */
 async function fetchFromINaturalist(plant) {
   try {
-    const res   = await fetch(`${INAT_API}?q=${encodeURIComponent(plant.latinName)}&limit=1&locale=en`, { headers: { Accept: 'application/json' } });
+    const url = `${INAT_API}?q=${encodeURIComponent(plant.latinName)}&limit=1&locale=en`;
+    const res  = await fetch(url, { headers: { Accept: 'application/json' } });
     if (!res.ok) return null;
     const data  = await res.json();
     const taxon = data.results?.[0];
     return taxon?.default_photo?.medium_url || taxon?.default_photo?.url || null;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
+/**
+ * Source 5: GBIF (Global Biodiversity Information Facility).
+ * Two-step: get taxon key → find an occurrence with a photo.
+ */
 async function fetchFromGBIF(plant) {
   try {
-    const speciesRes  = await fetch(`https://api.gbif.org/v1/species?name=${encodeURIComponent(plant.latinName)}&limit=1`, { headers: { Accept: 'application/json' } });
+    // Step 1 — resolve species key
+    const speciesRes = await fetch(
+      `https://api.gbif.org/v1/species?name=${encodeURIComponent(plant.latinName)}&limit=1`,
+      { headers: { Accept: 'application/json' } }
+    );
     if (!speciesRes.ok) return null;
     const speciesData = await speciesRes.json();
     const key = speciesData.results?.[0]?.key ?? speciesData.results?.[0]?.nubKey;
     if (!key) return null;
-    const occRes  = await fetch(`https://api.gbif.org/v1/occurrence/search?taxon_key=${key}&mediaType=StillImage&limit=5`, { headers: { Accept: 'application/json' } });
+
+    // Step 2 — find an occurrence with a StillImage
+    const occRes = await fetch(
+      `https://api.gbif.org/v1/occurrence/search?taxon_key=${key}&mediaType=StillImage&limit=5`,
+      { headers: { Accept: 'application/json' } }
+    );
     if (!occRes.ok) return null;
     const occData = await occRes.json();
     for (const occ of occData.results ?? []) {
@@ -535,9 +370,16 @@ async function fetchFromGBIF(plant) {
       if (media?.identifier) return media.identifier;
     }
     return null;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
+/**
+ * Main image resolver — walks the waterfall until a URL is found.
+ * Wikipedia (latin) → Wikipedia (common) → Wikimedia Commons →
+ * iNaturalist → GBIF → null (emoji fallback)
+ */
 async function fetchPlantImageUrl(plant) {
   const sources = [
     () => fetchFromWikipedia(plant),
@@ -552,20 +394,41 @@ async function fetchPlantImageUrl(plant) {
   return null;
 }
 
+
 // ──────────────────────────────────────────────────────────
-//  RENDER — cards and table
+//  HELPERS
 // ──────────────────────────────────────────────────────────
 
-function renderPlantCards(apiRows) {
-  for (const row of apiRows) {
-    const grid = document.getElementById(`row-${row.key}`);
-    if (!grid) continue;
-    grid.innerHTML = '';
-    row.plants.forEach((plant, idx) => grid.appendChild(createPlantCard(plant, row.key, idx)));
+const delay = (ms) => new Promise(r => setTimeout(r, ms));
+
+function renderSkeletonCards(plantList) {
+  const rowMap = {
+    small:  { container: el.rowSmall,  plants: plantList[CATEGORY_KEYS.small]  },
+    shrubs: { container: el.rowShrubs, plants: plantList[CATEGORY_KEYS.shrubs] },
+    trees:  { container: el.rowTrees,  plants: plantList[CATEGORY_KEYS.trees]  },
+  };
+  for (const [key, { container, plants }] of Object.entries(rowMap)) {
+    container.innerHTML = '';
+    plants.forEach((plant, idx) => container.appendChild(createPlantCard(plant, key, idx)));
   }
 }
 
-function createTableRow(plant, rowKey, rowLabel, idx) {
+function clearGrid() {
+  el.rowSmall.innerHTML = el.rowShrubs.innerHTML = el.rowTrees.innerHTML = '';
+  el.tableBody.innerHTML = '';
+}
+
+// ──────────────────────────────────────────────────────────
+//  TABLE RENDERING
+// ──────────────────────────────────────────────────────────
+
+const CATEGORY_LABELS = {
+  trees:  'Trees',
+  shrubs: 'Shrubs & Bushes',
+  small:  'Small Plants & Grasses',
+};
+
+function createTableRow(plant, rowKey, idx) {
   const tr = document.createElement('tr');
   tr.className = 'plant-row';
   tr.id = `trow-${rowKey}-${idx}`;
@@ -580,7 +443,7 @@ function createTableRow(plant, rowKey, rowLabel, idx) {
     </td>
     <td class="td-name"><span class="t-common">${escapeHtml(plant.commonName)}</span></td>
     <td class="td-latin">${escapeHtml(plant.latinName)}</td>
-    <td class="td-cat">${escapeHtml(rowLabel)}</td>
+    <td class="td-cat">${escapeHtml(CATEGORY_LABELS[rowKey] || '')}</td>
     <td class="td-spec">${escapeHtml(plant.waterNeeds     || '—')}</td>
     <td class="td-spec">${escapeHtml(plant.sunExposure    || '—')}</td>
     <td class="td-spec">${escapeHtml(plant.hardinessZones || '—')}</td>
@@ -592,14 +455,19 @@ function createTableRow(plant, rowKey, rowLabel, idx) {
   return tr;
 }
 
-function renderTableRows(apiRows) {
+function renderTableRows(plantList) {
   el.tableBody.innerHTML = '';
-  for (const row of apiRows) {
+  const groups = [
+    { key: 'trees',  plants: plantList[CATEGORY_KEYS.trees]  },
+    { key: 'shrubs', plants: plantList[CATEGORY_KEYS.shrubs] },
+    { key: 'small',  plants: plantList[CATEGORY_KEYS.small]  },
+  ];
+  for (const { key, plants } of groups) {
     const sep = document.createElement('tr');
     sep.className = 'table-group-row';
-    sep.innerHTML = `<td colspan="11">${escapeHtml(row.label)}</td>`;
+    sep.innerHTML = `<td colspan="11">${CATEGORY_LABELS[key]}</td>`;
     el.tableBody.appendChild(sep);
-    row.plants.forEach((plant, idx) => el.tableBody.appendChild(createTableRow(plant, row.key, row.label, idx)));
+    plants.forEach((plant, idx) => el.tableBody.appendChild(createTableRow(plant, key, idx)));
   }
 }
 
@@ -609,25 +477,30 @@ function renderTableRows(apiRows) {
 
 function switchView(mode) {
   if (isMobile()) {
+    // On mobile, swiping = navigation; dot-click also calls this
     scrollToMobilePage(mode === 'grid' ? 1 : 2);
     return;
   }
   if (mode === viewMode) return;
   viewMode = mode;
 
+  const hasData = appState === 'COMPLETE' || appState === 'FETCHING_IMAGES';
+
   el.btnGridView.classList.toggle('active',  mode === 'grid');
   el.btnGridView.setAttribute('aria-pressed', String(mode === 'grid'));
   el.btnTableView.classList.toggle('active', mode === 'table');
   el.btnTableView.setAttribute('aria-pressed', String(mode === 'table'));
 
-  const hasData = appState === 'COMPLETE' || appState === 'FETCHING_IMAGES';
   if (mode === 'grid') {
+    el.gridShell.hidden  = !hasData;
     el.tableShell.hidden = true;
-    // Grid is always shown; no toggle needed
   } else {
+    el.gridShell.hidden  = true;
     el.tableShell.hidden = !hasData;
   }
 }
+
+
 
 // ──────────────────────────────────────────────────────────
 //  REPLACE SPECIES
@@ -640,19 +513,16 @@ async function replacePlant(rowKey, idx) {
   const refreshBtn = card?.querySelector('.card-refresh-btn');
   if (!card || !refreshBtn || refreshBtn.disabled) return;
 
+  // Show loading state on the card
   refreshBtn.disabled = true;
   refreshBtn.classList.add('spinning');
   card.classList.add('refreshing');
   card.classList.remove('flipped');
 
-  // Find the row config and current plant
-  const rowConfig     = gridConfig.find(r => r.key === rowKey);
-  const paletteRow    = currentPalette.find(r => r.key === rowKey);
-  const beingReplaced = paletteRow?.plants?.[idx];
-
   // All current latin names except the one being replaced
-  const existing = currentPalette
-    .flatMap(r => r.plants)
+  const beingReplaced = currentPalette[rowKey]?.[idx];
+  const existing = Object.values(currentPalette)
+    .flat()
     .filter(p => p.latinName !== beingReplaced?.latinName)
     .map(p => p.latinName);
 
@@ -663,7 +533,7 @@ async function replacePlant(rowKey, idx) {
       body:    JSON.stringify({
         location:  currentVibe.location,
         qualities: currentVibe.qualities,
-        rowLabel:  rowConfig?.label || 'Plants',
+        category:  rowKey,
         existing,
       }),
     });
@@ -672,9 +542,9 @@ async function replacePlant(rowKey, idx) {
     if (!res.ok) throw new Error(newPlant.error);
 
     // Update palette state
-    if (paletteRow) paletteRow.plants[idx] = newPlant;
+    currentPalette[rowKey][idx] = newPlant;
 
-    // Swap card in grid
+    // Swap card in grid (creates a fresh card element)
     const newCard = createPlantCard(newPlant, rowKey, idx);
     newCard.classList.add('replacing');
     newCard.classList.remove('enter');
@@ -682,42 +552,32 @@ async function replacePlant(rowKey, idx) {
 
     // Swap matching row in table
     const oldRow = document.getElementById(`trow-${rowKey}-${idx}`);
-    if (oldRow) oldRow.replaceWith(createTableRow(newPlant, rowKey, rowConfig?.label || '', idx));
+    if (oldRow) oldRow.replaceWith(createTableRow(newPlant, rowKey, idx));
 
-    // Fetch image
+    // Fetch image for the new species and inject into both views
     const imageUrl = await fetchPlantImageUrl(newPlant);
     injectCardImage(rowKey, idx, imageUrl);
 
   } catch (err) {
     console.error('replacePlant error:', err);
     showToast(err.message || 'Could not find a replacement. Try again.', 'error', 5000);
+    // Restore the original card's state
     refreshBtn.disabled = false;
     refreshBtn.classList.remove('spinning');
     card.classList.remove('refreshing');
   }
 }
 
-// ──────────────────────────────────────────────────────────
-//  UI STATE HELPER
-// ──────────────────────────────────────────────────────────
-
 function setGeneratingUI(isGenerating) {
-  el.generateBtn.disabled    = isGenerating;
+  el.generateBtn.disabled = isGenerating;
   el.locationInput.disabled  = isGenerating;
   el.qualitiesInput.disabled = isGenerating;
   el.generateBtnText.textContent = isGenerating ? 'Generating' : 'Generate';
   el.generateBtnIcon.textContent = isGenerating ? '⦿' : '↗';
   el.generateBtn.classList.toggle('loading', isGenerating);
-  if (el.btnGridView)  el.btnGridView.disabled  = isGenerating;
-  if (el.btnTableView) el.btnTableView.disabled = isGenerating;
-
-  // Disable row controls while generating
-  el.gridShell.querySelectorAll('.row-count-btn, .row-delete-btn, #add-row-btn').forEach(btn => {
-    btn.disabled = isGenerating;
-  });
-  el.gridShell.querySelectorAll('.row-label-editable').forEach(label => {
-    label.contentEditable = isGenerating ? 'false' : 'true';
-  });
+  // Disable view buttons while generating
+  el.btnGridView.disabled  = isGenerating;
+  el.btnTableView.disabled = isGenerating;
 }
 
 // ──────────────────────────────────────────────────────────
@@ -735,71 +595,73 @@ async function generate() {
     return;
   }
 
-  const totalPlants = gridConfig.reduce((sum, r) => sum + r.count, 0);
-  if (totalPlants === 0) { showToast('Add at least one plant slot to the grid.', 'error'); return; }
-
   if (appState !== 'IDLE' && appState !== 'COMPLETE') return;
 
   appState = 'GENERATING_TEXT';
   setGeneratingUI(true);
-
-  // Reset grid cards to placeholder state
-  for (const row of gridConfig) {
-    const grid = document.getElementById(`row-${row.key}`);
-    if (grid) {
-      grid.innerHTML = '';
-      for (let i = 0; i < row.count; i++) grid.appendChild(buildPlaceholderCard(row.key, i));
-    }
-  }
+  // Reset grid content
+  el.rowSmall.innerHTML = el.rowShrubs.innerHTML = el.rowTrees.innerHTML = '';
   el.tableBody.innerHTML = '';
-  el.tableShell.hidden = true;
-
-  if (isMobile()) scrollToMobilePage(0);
-
+  if (!isMobile()) {
+    el.gridShell.hidden  = true;
+    el.tableShell.hidden = true;
+  } else {
+    scrollToMobilePage(0); // scroll back to input page while generating
+  }
   showProgress(true);
   setProgress(5, 'Consulting Gemini…');
 
   try {
-    setProgress(10, `Building palette for "${location}"…`);
-    const apiResponse = await fetchPlantList(location, qualities, gridConfig);
+    // ── Phase 1: Plant List ──────────────────────────────
+    setProgress(10, `Building palette for “${location}”…`);
+    const plantList = await fetchPlantList(location, qualities);
     setProgress(22, 'Populating cards…');
 
-    // Validate response rows match gridConfig
-    const rows = apiResponse.rows;
-    if (!Array.isArray(rows)) throw new Error('Unexpected response format from AI.');
+    // Build both views
+    renderSkeletonCards(plantList);
+    renderTableRows(plantList);
 
-    // Render
-    renderPlantCards(rows);
-    renderTableRows(rows);
-
-    // Save state
+    // Save state for replace feature
     currentVibe    = { location, qualities };
-    currentPalette = rows;
+    currentPalette = {
+      trees:  [...plantList[CATEGORY_KEYS.trees]],
+      shrubs: [...plantList[CATEGORY_KEYS.shrubs]],
+      small:  [...plantList[CATEGORY_KEYS.small]],
+    };
 
-    // Show table view if needed
+    // Show whichever view is active
     if (isMobile()) {
+      // Both shells are always visible on mobile (separate swipe pages)
+      el.gridShell.hidden = false;
       el.tableShell.hidden = false;
-      setTimeout(() => scrollToMobilePage(1), 80);
-    } else if (viewMode === 'table') {
-      el.tableShell.hidden = false;
+      setTimeout(() => scrollToMobilePage(1), 80); // auto-navigate to grid
+    } else {
+      if (viewMode === 'grid') { el.gridShell.hidden = false; }
+      else                     { el.tableShell.hidden = false; }
     }
 
-    // Phase 2: Images
+    // ── Phase 2: Images (Wikipedia + iNaturalist) ────────
+    // All 15 fired in parallel — they're just simple GET requests
     appState = 'FETCHING_IMAGES';
-    let done = 0;
-    const total = rows.reduce((s, r) => s + (r.plants?.length || 0), 0);
+    const rows = [
+      { key: 'small',  plants: plantList[CATEGORY_KEYS.small]  },
+      { key: 'shrubs', plants: plantList[CATEGORY_KEYS.shrubs] },
+      { key: 'trees',  plants: plantList[CATEGORY_KEYS.trees]  },
+    ];
 
+    let done = 0;
     const allImageTasks = rows.flatMap(row =>
-      (row.plants || []).map(async (plant, idx) => {
+      row.plants.map(async (plant, idx) => {
         const imageUrl = await fetchPlantImageUrl(plant);
         done++;
-        setProgress(22 + Math.round((done / total) * 74), `Loading images… ${done} / ${total}`);
+        setProgress(22 + Math.round((done / 15) * 74), `Loading images… ${done} / 15`);
         injectCardImage(row.key, idx, imageUrl);
       })
     );
 
     await Promise.all(allImageTasks);
 
+    // ── Complete ─────────────────────────────────────────
     appState = 'COMPLETE';
     const vibeLabel = currentVibe.qualities
       ? `${currentVibe.location} · ${currentVibe.qualities}`
@@ -807,7 +669,10 @@ async function generate() {
     setProgress(100, `Done — ${vibeLabel}`);
     setGeneratingUI(false);
 
-    setTimeout(() => { showProgress(false); setProgress(0, ''); }, 2000);
+    setTimeout(() => {
+      showProgress(false);
+      setProgress(0, '');
+    }, 2000);
 
   } catch (err) {
     console.error(err);
@@ -816,8 +681,6 @@ async function generate() {
     showProgress(false);
     setProgress(0, '');
     showToast(err.message || 'Something went wrong. Please try again.', 'error', 7000);
-    // Revert grid to placeholder state
-    initConfigGrid();
   }
 }
 
@@ -826,52 +689,33 @@ async function generate() {
 // ──────────────────────────────────────────────────────────
 
 el.generateBtn.addEventListener('click', generate);
+
+// View toggle buttons
 el.btnGridView.addEventListener('click',  () => switchView('grid'));
 el.btnTableView.addEventListener('click', () => switchView('table'));
 
-// Grid interactions — delegated to grid-shell
+// Grid interactions — refresh button and card flip (single delegated listener)
 el.gridShell.addEventListener('click', (e) => {
 
-  // ── Row count stepper ──
-  const countBtn = e.target.closest('.row-count-btn');
-  if (countBtn) {
-    handleRowCountChange(countBtn.dataset.key, parseInt(countBtn.dataset.delta));
-    return;
-  }
-
-  // ── Row delete ──
-  const deleteBtn = e.target.closest('.row-delete-btn');
-  if (deleteBtn) {
-    handleRowDelete(deleteBtn.dataset.key);
-    return;
-  }
-
-  // ── Add row ──
-  if (e.target.closest('#add-row-btn')) {
-    handleAddRow();
-    return;
-  }
-
-  // ── Card refresh (replace species) ──
+  // ── Refresh button: replace this species ──
   const refreshBtn = e.target.closest('.card-refresh-btn');
   if (refreshBtn) {
     const card = refreshBtn.closest('.plant-card');
     if (!card) return;
     const [, rowKey, idx] = card.id.split('-');
     replacePlant(rowKey, parseInt(idx));
-    return;
+    return; // don't flip
   }
 
-  // ── Card flip ──
+  // ── Card body: flip front/back ──
   const card = e.target.closest('.plant-card');
-  if (!card || card.classList.contains('placeholder-card') || card.classList.contains('refreshing')) return;
+  if (!card || card.classList.contains('refreshing')) return;
   card.classList.toggle('flipped');
   const isFlipped = card.classList.contains('flipped');
   card.setAttribute('aria-pressed', String(isFlipped));
   const back = card.querySelector('.card-back');
   if (back) back.setAttribute('aria-hidden', String(!isFlipped));
 });
-
 // ──────────────────────────────────────────────────────────
 //  MOBILE SWIPE INIT
 // ──────────────────────────────────────────────────────────
@@ -895,28 +739,40 @@ function initMobileSwipe() {
   const mainEl   = document.getElementById('main-content');
   const pageDots = document.getElementById('page-dots');
 
+  // Build the horizontal swipe container
   const swiper = document.createElement('div');
   swiper.id = 'mob-swiper';
   swiper.className = 'mob-swiper';
 
-  swiper.appendChild(topbar);    // PAGE 1: input home
-  swiper.appendChild(el.gridShell);  // PAGE 2: grid
-  swiper.appendChild(el.tableShell); // PAGE 3: table
+  // PAGE 1: topbar becomes the full-screen input home
+  swiper.appendChild(topbar);
 
+  // PAGE 2: grid shell
+  swiper.appendChild(el.gridShell);
+
+  // PAGE 3: table shell
+  swiper.appendChild(el.tableShell);
+
+  // Insert swiper at top of body (before remaining elements)
   body.prepend(swiper);
+
+  // Remove the now-empty main-content wrapper
   mainEl?.remove();
 
-  // Grid is always shown on mobile
+  // Both shells visible on mobile (they live on separate pages)
   el.gridShell.removeAttribute('hidden');
   el.tableShell.removeAttribute('hidden');
 
+  // Show page dots
   if (pageDots) pageDots.removeAttribute('hidden');
 
+  // Track scroll position and update dots
   swiper.addEventListener('scroll', () => {
     const idx = Math.round(swiper.scrollLeft / window.innerWidth);
     updateMobileDots(idx);
   }, { passive: true });
 
+  // Dot-click navigation
   document.querySelectorAll('.page-dots .dot').forEach(dot => {
     dot.addEventListener('click', () => {
       const idx = parseInt(dot.dataset.idx);
@@ -927,6 +783,5 @@ function initMobileSwipe() {
   });
 }
 
-// ── Bootstrap ─────────────────────────────────────────────
-initConfigGrid();      // Render placeholder grid on load
-initMobileSwipe();     // Restructure DOM for mobile if needed
+// Initialize mobile layout on load
+initMobileSwipe();

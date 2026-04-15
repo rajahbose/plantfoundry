@@ -309,191 +309,27 @@ body {
    ==================================================== */
 
 .grid-shell {
+  /* Fill exactly the space below the topbar — no scrolling */
   height: calc(100dvh - var(--topbar-h));
-  padding: 20px 96px 40px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  display: block;
+  display: grid;
+  grid-template-rows: min-content 1fr min-content 1fr min-content 1fr;
+  padding: 32px 96px 40px;
+  gap: 0;
+  overflow: hidden;
 }
 
 .grid-shell[hidden] { display: none; }
 
-/* ---- Row container (wraps header + plant-grid) ---- */
-.row-container {
-  margin-bottom: 16px;
-}
-
-/* ---- Row header ---- */
-.row-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 2px 5px;
-  gap: 12px;
-  min-height: 32px;
-}
-
-.row-header-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1;
-  min-width: 0;
-}
-
-.row-header-right {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-/* ---- Row label (base static style) ---- */
+/* --- Row Labels --- */
 .row-label {
   font-size: 10px;
   font-weight: 500;
   letter-spacing: 0.09em;
   text-transform: uppercase;
   color: var(--c-text-faint);
+  padding: 8px 2px 4px;
   user-select: none;
   line-height: 1;
-}
-
-/* ---- Editable row label ---- */
-.row-label-editable {
-  display: inline-block;
-  font-family: var(--ff-ui);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: var(--c-text-muted);
-  cursor: text;
-  outline: none;
-  border-bottom: 1px solid transparent;
-  transition: border-color var(--t-base), color var(--t-base);
-  min-width: 40px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 220px;
-  padding: 1px 0;
-}
-
-.row-label-editable:hover {
-  color: var(--c-text);
-  border-bottom-color: var(--c-border-dark);
-}
-
-.row-label-editable:focus {
-  color: var(--c-accent);
-  border-bottom-color: var(--c-accent);
-  text-overflow: clip;
-}
-
-/* ---- Count stepper ---- */
-.row-count-controls {
-  display: flex;
-  align-items: center;
-  gap: 0;
-  background: var(--c-bg);
-  border: 1px solid var(--c-border);
-  border-radius: 7px;
-  overflow: hidden;
-}
-
-.row-count-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0 9px;
-  height: 26px;
-  font-size: 16px;
-  font-weight: 300;
-  color: var(--c-text-muted);
-  line-height: 1;
-  transition: background var(--t-base), color var(--t-base);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.row-count-btn:hover:not(:disabled) {
-  background: var(--c-border);
-  color: var(--c-text);
-}
-
-.row-count-btn:disabled {
-  opacity: 0.35;
-  cursor: default;
-}
-
-.row-count-display {
-  font-family: var(--ff-ui);
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--c-text);
-  min-width: 18px;
-  text-align: center;
-  user-select: none;
-  padding: 0 2px;
-}
-
-/* ---- Delete row button ---- */
-.row-delete-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--c-text-faint);
-  transition: background var(--t-base), color var(--t-base);
-  padding: 0;
-  flex-shrink: 0;
-}
-
-.row-delete-btn:hover {
-  background: #fde8e8;
-  color: #c0392b;
-}
-
-/* ---- Add Category button ---- */
-.add-row-wrap {
-  display: flex;
-  justify-content: center;
-  padding: 12px 0 8px;
-}
-
-.add-row-btn {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  background: none;
-  border: 1.5px dashed var(--c-border-dark);
-  border-radius: 8px;
-  padding: 7px 18px;
-  font-family: var(--ff-ui);
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--c-text-faint);
-  cursor: pointer;
-  transition: border-color var(--t-base), color var(--t-base), background var(--t-base);
-  letter-spacing: 0.04em;
-}
-
-.add-row-btn:hover:not(:disabled) {
-  border-color: var(--c-accent);
-  color: var(--c-accent);
-  background: hsl(var(--accent-h) 60% 97%);
-}
-
-.add-row-btn:disabled {
-  opacity: 0.35;
-  cursor: default;
 }
 
 /* --- Plant Grid Row --- */
@@ -501,48 +337,8 @@ body {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 8px;
-  min-height: 0;
+  min-height: 0; /* critical: allows grid children to shrink */
 }
-
-/* ---- Placeholder card ---- */
-.placeholder-card {
-  cursor: default !important;
-  box-shadow: none !important;
-  border-radius: var(--radius);
-  border: 1.5px dashed var(--c-border);
-  background: var(--c-bg);
-  transition: border-color var(--t-base);
-  aspect-ratio: 3/4;
-}
-
-.placeholder-card:hover {
-  box-shadow: none !important;
-  border-color: var(--c-border-dark);
-}
-
-.placeholder-front {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: none !important;
-  background: transparent !important;
-  border-radius: var(--radius);
-}
-
-.placeholder-body {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-}
-
-.placeholder-leaf {
-  color: var(--c-border-dark);
-  opacity: 0.5;
-}
-
 
 /* ====================================================
    PLANT CARD — 3D Flip
