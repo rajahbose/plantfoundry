@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PlantFoundry — AI Landscape Planner</title>
+  <meta name="description" content="PlantFoundry uses Gemini AI to generate curated plant palettes for any landscape style, complete with botanical photography." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- ======= TOP NAV ======= -->
+  <header class="topbar" role="banner">
+    <div class="topbar-left">
+      <div class="brand">
+        <span class="brand-name">PlantFoundry</span>
+      </div>
+      <div class="vibe-form" role="search" aria-label="Landscape vibe input">
+        <input
+          id="vibe-input"
+          type="text"
+          class="vibe-input"
+          placeholder="Describe a landscape — region, style, climate…"
+          autocomplete="off"
+          spellcheck="false"
+          aria-label="Landscape vibe, region or style"
+          maxlength="200"
+        />
+        <button id="generate-btn" class="generate-btn" aria-label="Generate plant palette">
+          <span class="generate-btn-text">Generate</span>
+          <span class="generate-btn-icon" aria-hidden="true">↗</span>
+        </button>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="status-label" id="status-label" aria-live="polite" aria-atomic="true"></div>
+    </div>
+  </header>
+
+  <!-- ======= PROGRESS BAR ======= -->
+  <div class="progress-bar-wrap" id="progress-bar-wrap" hidden aria-hidden="true">
+    <div class="progress-bar" id="progress-bar"></div>
+  </div>
+
+  <!-- ======= MAIN CONTENT ======= -->
+  <main class="main-content" id="main-content">
+
+    <!-- PLANT GRID — Trees on top, Small Plants on bottom -->
+    <div class="grid-shell" id="grid-shell" hidden aria-label="Plant palette grid">
+
+      <!-- ROW 1: Trees -->
+      <div class="row-label" aria-label="Category: Trees">Trees</div>
+      <div class="plant-grid" id="row-trees" role="list" aria-label="Trees"></div>
+
+      <!-- ROW 2: Shrubs & Bushes -->
+      <div class="row-label" aria-label="Category: Shrubs &amp; Bushes">Shrubs &amp; Bushes</div>
+      <div class="plant-grid" id="row-shrubs" role="list" aria-label="Shrubs and bushes"></div>
+
+      <!-- ROW 3: Small Plants & Grasses -->
+      <div class="row-label" aria-label="Category: Small Plants &amp; Grasses">Small Plants &amp; Grasses</div>
+      <div class="plant-grid" id="row-small" role="list" aria-label="Small plants and grasses"></div>
+
+    </div>
+
+  </main>
+
+  <!-- ======= TOAST NOTIFICATIONS ======= -->
+  <div class="toast-container" id="toast-container" role="alert" aria-live="assertive"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
