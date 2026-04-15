@@ -241,58 +241,133 @@ async function fetchPlantList(vibe) {
 
 
 // ──────────────────────────────────────────────────────────
-//  IMAGE FETCHING — Wikipedia + iNaturalist fallback
+//  IMAGE FETCHING — 5-source waterfall
+//  Wikipedia (latin) → Wikipedia (common) →
+//  Wikimedia Commons → iNaturalist → GBIF
 // ──────────────────────────────────────────────────────────
 
 /**
- * Try Wikipedia REST API first (best quality, exact species match).
- * Returns an image URL string or null.
+ * Source 1 & 2: Wikipedia REST API.
+ * Tries the latin name first, then the common name.
  */
 async function fetchFromWikipedia(plant) {
+  const attempts = [plant.latinName, plant.commonName];
+  for (const title of attempts) {
+    try {
+      const url = `${WIKI_API}/${encodeURIComponent(title)}`;
+      const res  = await fetch(url, { headers: { Accept: 'application/json' } });
+      if (!res.ok) continue;
+      const data = await res.json();
+      const img  = data.originalimage?.source || data.thumbnail?.source;
+      if (img) return img;
+    } catch { /* try next */ }
+  }
+  return null;
+}
+
+/**
+ * Source 3: Wikimedia Commons image search.
+ * Searches for a freely-licensed photo matching the latin name.
+ */
+async function fetchFromWikimediaCommons(plant) {
   try {
-    // Wikipedia pages for plant species are typically under the latin name
-    const url = `${WIKI_API}/${encodeURIComponent(plant.latinName)}`;
-    const res = await fetch(url, { headers: { Accept: 'application/json' } });
+    const url = [
+      'https://commons.wikimedia.org/w/api.php',
+      '?action=query',
+      '&generator=search',
+      `&gsrsearch=${encodeURIComponent(plant.latinName)}`,
+      '&gsrnamespace=6',   // File namespace only
+      '&gsrlimit=3',
+      '&prop=imageinfo',
+      '&iiprop=url',
+      '&iiurlwidth=800',
+      '&format=json',
+      '&origin=*',
+    ].join('');
+    const res  = await fetch(url, { headers: { Accept: 'application/json' } });
     if (!res.ok) return null;
-    const data = await res.json();
-    // Prefer originalimage for higher resolution, fall back to thumbnail
-    return data.originalimage?.source || data.thumbnail?.source || null;
+    const data  = await res.json();
+    const pages = data.query?.pages;
+    if (!pages) return null;
+    // Pick first result that has an image URL
+    for (const page of Object.values(pages)) {
+      const src = page.imageinfo?.[0]?.thumburl || page.imageinfo?.[0]?.url;
+      if (src) return src;
+    }
+    return null;
   } catch {
     return null;
   }
 }
 
 /**
- * Fallback: iNaturalist taxa API — searches by latin name, returns a photo URL.
- * Returns an image URL string or null.
+ * Source 4: iNaturalist taxa API.
  */
 async function fetchFromINaturalist(plant) {
   try {
     const url = `${INAT_API}?q=${encodeURIComponent(plant.latinName)}&limit=1&locale=en`;
-    const res = await fetch(url, { headers: { Accept: 'application/json' } });
+    const res  = await fetch(url, { headers: { Accept: 'application/json' } });
     if (!res.ok) return null;
-    const data = await res.json();
+    const data  = await res.json();
     const taxon = data.results?.[0];
-    return (
-      taxon?.default_photo?.medium_url ||
-      taxon?.default_photo?.url ||
-      null
-    );
+    return taxon?.default_photo?.medium_url || taxon?.default_photo?.url || null;
   } catch {
     return null;
   }
 }
 
 /**
- * Fetch the best available image URL for a plant.
- * Tries Wikipedia first, then iNaturalist, then returns null (emoji fallback).
+ * Source 5: GBIF (Global Biodiversity Information Facility).
+ * Two-step: get taxon key → find an occurrence with a photo.
+ */
+async function fetchFromGBIF(plant) {
+  try {
+    // Step 1 — resolve species key
+    const speciesRes = await fetch(
+      `https://api.gbif.org/v1/species?name=${encodeURIComponent(plant.latinName)}&limit=1`,
+      { headers: { Accept: 'application/json' } }
+    );
+    if (!speciesRes.ok) return null;
+    const speciesData = await speciesRes.json();
+    const key = speciesData.results?.[0]?.key ?? speciesData.results?.[0]?.nubKey;
+    if (!key) return null;
+
+    // Step 2 — find an occurrence with a StillImage
+    const occRes = await fetch(
+      `https://api.gbif.org/v1/occurrence/search?taxon_key=${key}&mediaType=StillImage&limit=5`,
+      { headers: { Accept: 'application/json' } }
+    );
+    if (!occRes.ok) return null;
+    const occData = await occRes.json();
+    for (const occ of occData.results ?? []) {
+      const media = occ.media?.find(m => m.type === 'StillImage' && m.identifier);
+      if (media?.identifier) return media.identifier;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Main image resolver — walks the waterfall until a URL is found.
+ * Wikipedia (latin) → Wikipedia (common) → Wikimedia Commons →
+ * iNaturalist → GBIF → null (emoji fallback)
  */
 async function fetchPlantImageUrl(plant) {
-  const wikiUrl = await fetchFromWikipedia(plant);
-  if (wikiUrl) return wikiUrl;
-  const inatUrl = await fetchFromINaturalist(plant);
-  return inatUrl || null;
+  const sources = [
+    () => fetchFromWikipedia(plant),
+    () => fetchFromWikimediaCommons(plant),
+    () => fetchFromINaturalist(plant),
+    () => fetchFromGBIF(plant),
+  ];
+  for (const source of sources) {
+    const url = await source();
+    if (url) return url;
+  }
+  return null;
 }
+
 
 // ──────────────────────────────────────────────────────────
 //  HELPERS
