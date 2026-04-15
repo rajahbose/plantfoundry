@@ -57,6 +57,7 @@ Return ONLY a valid JSON object (no markdown, no explanation, no code fences):
 Rules:
 - The plant must be native to or genuinely appropriate for the stated location and climate.
 - If qualities are stated, the plant should reflect at least one of them.
+- IMPORTANT: If the Qualities field names a specific plant species (by common name or Latin name), use that exact species as the replacement. Otherwise, choose the best complementary fit.
 - latinName must be correct binomial nomenclature (Genus species or Genus species 'Cultivar').
 - Do NOT suggest any species already in the exclusion list above.`;
 

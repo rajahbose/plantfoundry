@@ -60,6 +60,7 @@ Rules:
 - commonName should be the most widely recognized English common name.
 - Species must genuinely suit the stated location's climate, soil, and rainfall patterns.
 - If qualities are specified, each plant should reflect at least one of those qualities.
+- IMPORTANT: If the user has named any specific plant species (by common name or Latin name) in the Location or Qualities fields, those species MUST appear in the output palette. Place each named species in the most botanically appropriate category. Fill the remaining slots in that category (and all other categories) with complementary species that suit the location and qualities.
 - Do not repeat any species.`;
 
   try {
