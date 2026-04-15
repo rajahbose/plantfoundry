@@ -590,7 +590,6 @@ async function generate() {
 
   try {
     // ── Phase 1: Plant List ──────────────────────────────
-    const vibeLabel = qualities ? `${location} · ${qualities}` : location;
     setProgress(10, `Building palette for “${location}”…`);
     const plantList = await fetchPlantList(location, qualities);
     setProgress(22, 'Populating cards…');
