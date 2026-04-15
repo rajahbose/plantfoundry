@@ -172,6 +172,14 @@ function createPlantCard(plant, rowKey, index) {
             <span class="spec-label">Climate</span>
             <span class="spec-value">${escapeHtml(plant.climate || '—')}</span>
           </div>
+          <div class="spec-item">
+            <span class="spec-label">Min Temp</span>
+            <span class="spec-value">${escapeHtml(plant.minTemp || '—')}</span>
+          </div>
+          <div class="spec-item">
+            <span class="spec-label">Colors</span>
+            <span class="spec-value">${escapeHtml(plant.predominantColors || '—')}</span>
+          </div>
         </div>
         ${plant.landscapeNote ? `<p class="card-back-desc">${escapeHtml(plant.landscapeNote)}</p>` : ''}
         <p class="card-back-hint">Click to flip back</p>
@@ -439,6 +447,8 @@ function createTableRow(plant, rowKey, idx) {
     <td class="td-spec">${escapeHtml(plant.hardinessZones || '—')}</td>
     <td class="td-spec">${escapeHtml(plant.matureHeight   || '—')}</td>
     <td class="td-spec">${escapeHtml(plant.growthRate     || '—')}</td>
+    <td class="td-spec">${escapeHtml(plant.minTemp        || '—')}</td>
+    <td class="td-spec">${escapeHtml(plant.predominantColors || '—')}</td>
   `;
   return tr;
 }
@@ -453,7 +463,7 @@ function renderTableRows(plantList) {
   for (const { key, plants } of groups) {
     const sep = document.createElement('tr');
     sep.className = 'table-group-row';
-    sep.innerHTML = `<td colspan="9">${CATEGORY_LABELS[key]}</td>`;
+    sep.innerHTML = `<td colspan="11">${CATEGORY_LABELS[key]}</td>`;
     el.tableBody.appendChild(sep);
     plants.forEach((plant, idx) => el.tableBody.appendChild(createTableRow(plant, key, idx)));
   }

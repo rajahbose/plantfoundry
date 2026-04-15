@@ -313,7 +313,7 @@ body {
   height: calc(100dvh - var(--topbar-h));
   display: grid;
   grid-template-rows: min-content 1fr min-content 1fr min-content 1fr;
-  padding: 16px 48px 20px;
+  padding: 32px 96px 40px;
   gap: 0;
   overflow: hidden;
 }

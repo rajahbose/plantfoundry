@@ -51,6 +51,8 @@ Return ONLY a valid JSON object (no markdown, no explanation, no code fences):
   "matureHeight": "e.g. 4–6 ft",
   "growthRate": "Slow | Moderate | Fast",
   "climate": "e.g. Mediterranean",
+  "minTemp": "e.g. 20°F (-7°C)",
+  "predominantColors": "e.g. Silver-green foliage, purple flowers",
   "landscapeNote": "One sentence on its standout quality or best landscape use."
 }
 
@@ -59,6 +61,8 @@ Rules:
 - If qualities are stated, the plant should reflect at least one of them.
 - IMPORTANT: If the Qualities field names a specific plant species (by common name or Latin name), use that exact species as the replacement. Otherwise, choose the best complementary fit.
 - latinName must be correct binomial nomenclature (Genus species or Genus species 'Cultivar').
+- minTemp should be the lowest temperature the plant can survive, expressed as both °F and °C.
+- predominantColors should describe the main foliage, flower, or seasonal colors in plain English.
 - Do NOT suggest any species already in the exclusion list above.`;
 
   try {

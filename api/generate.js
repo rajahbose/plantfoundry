@@ -46,6 +46,8 @@ Return ONLY a valid JSON object with NO markdown, NO explanation, NO commentary 
       "matureHeight": "e.g. 12–18 in",
       "growthRate": "Slow | Moderate | Fast",
       "climate": "e.g. Mediterranean",
+      "minTemp": "e.g. 20°F (-7°C)",
+      "predominantColors": "e.g. Silver-green foliage, purple flowers",
       "landscapeNote": "One sentence on its standout quality or best landscape use."
     },
     ... (exactly 5)
@@ -61,6 +63,8 @@ Rules:
 - Species must genuinely suit the stated location's climate, soil, and rainfall patterns.
 - If qualities are specified, each plant should reflect at least one of those qualities.
 - IMPORTANT: If the user has named any specific plant species (by common name or Latin name) in the Location or Qualities fields, those species MUST appear in the output palette. Place each named species in the most botanically appropriate category. Fill the remaining slots in that category (and all other categories) with complementary species that suit the location and qualities.
+- minTemp should be the lowest temperature the plant can survive, expressed as both °F and °C.
+- predominantColors should describe the main foliage, flower, or seasonal colors in plain English.
 - Do not repeat any species.`;
 
   try {
