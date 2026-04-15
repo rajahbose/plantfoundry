@@ -18,17 +18,36 @@
       <div class="brand">
         <span class="brand-name">PlantFoundry</span>
       </div>
-      <div class="vibe-form" role="search" aria-label="Landscape vibe input">
-        <input
-          id="vibe-input"
-          type="text"
-          class="vibe-input"
-          placeholder="Describe a landscape — region, style, climate…"
-          autocomplete="off"
-          spellcheck="false"
-          aria-label="Landscape vibe, region or style"
-          maxlength="200"
-        />
+      <div class="vibe-form" role="search" aria-label="Landscape search">
+        <div class="vibe-field-group">
+          <div class="vibe-field">
+            <label class="vibe-field-label" for="location-input">Location</label>
+            <input
+              id="location-input"
+              type="text"
+              class="vibe-input"
+              placeholder="Pacific Northwest, Austin TX, Mediterranean…"
+              autocomplete="off"
+              spellcheck="false"
+              aria-label="Location or region"
+              maxlength="120"
+            />
+          </div>
+          <div class="vibe-divider" aria-hidden="true"></div>
+          <div class="vibe-field">
+            <label class="vibe-field-label" for="qualities-input">Qualities</label>
+            <input
+              id="qualities-input"
+              type="text"
+              class="vibe-input"
+              placeholder="drought tolerant, wildlife friendly, low maintenance…"
+              autocomplete="off"
+              spellcheck="false"
+              aria-label="Desired landscape qualities or attributes"
+              maxlength="200"
+            />
+          </div>
+        </div>
         <button id="generate-btn" class="generate-btn" aria-label="Generate plant palette">
           <span class="generate-btn-text">Generate</span>
           <span class="generate-btn-icon" aria-hidden="true">↗</span>

@@ -6,9 +6,9 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { vibe, category, existing } = req.body || {};
+  const { location, qualities, category, existing } = req.body || {};
 
-  if (!vibe || !category || !Array.isArray(existing)) {
+  if (!location || !category || !Array.isArray(existing)) {
     return res.status(400).json({ error: 'Missing required parameters.' });
   }
 
@@ -27,12 +27,18 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Server is missing GEMINI_API_KEY.' });
   }
 
-  const prompt = `You are an expert landscape botanist and horticulturist.
-The user is designing a "${vibe}" landscape and wants to swap out one plant.
+  const qualitiesClause = qualities && qualities.trim()
+    ? `\nDesired landscape qualities and attributes: "${qualities.trim()}"`
+    : '';
 
-Suggest exactly ONE new plant species from this category: ${categoryLabel}.
+  const prompt = `You are an expert landscape botanist and horticulturist with deep knowledge of regional flora.
 
-The following species are ALREADY in the palette — do NOT repeat any of them:
+The user is designing a landscape with these parameters:
+Location / Region: "${location}"${qualitiesClause}
+
+They want to replace one plant in the palette. Suggest exactly ONE new species from this category: ${categoryLabel}.
+
+The following species are ALREADY in the palette — do NOT suggest any of them:
 ${existing.map(n => `- ${n}`).join('\n')}
 
 Return ONLY a valid JSON object (no markdown, no explanation, no code fences):
@@ -45,13 +51,14 @@ Return ONLY a valid JSON object (no markdown, no explanation, no code fences):
   "matureHeight": "e.g. 4–6 ft",
   "growthRate": "Slow | Moderate | Fast",
   "climate": "e.g. Mediterranean",
-  "landscapeNote": "One sentence on landscape use or standout quality."
+  "landscapeNote": "One sentence on its standout quality or best landscape use."
 }
 
 Rules:
-- The plant must be appropriate and authentic to the "${vibe}" style/region.
-- latinName must be correct binomial nomenclature (Genus species).
-- Do NOT suggest any species from the exclusion list above.`;
+- The plant must be native to or genuinely appropriate for the stated location and climate.
+- If qualities are stated, the plant should reflect at least one of them.
+- latinName must be correct binomial nomenclature (Genus species or Genus species 'Cultivar').
+- Do NOT suggest any species already in the exclusion list above.`;
 
   try {
     const geminiRes = await fetch(

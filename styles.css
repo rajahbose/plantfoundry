@@ -107,29 +107,74 @@ body {
   align-items: center;
   gap: 8px;
   flex: 1;
-  max-width: 500px;
+  max-width: 680px;
+}
+
+/* Unified field group — looks like one search bar with two zones */
+.vibe-field-group {
+  display: flex;
+  align-items: stretch;
+  flex: 1;
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius);
+  background: var(--c-surface);
+  transition: border-color var(--t-base), background var(--t-base);
+  min-width: 0;
+}
+
+.vibe-field-group:focus-within {
+  border-color: var(--c-border-dark);
+  background: var(--c-bg);
+}
+
+/* Each field inside the group */
+.vibe-field {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 4px 12px 5px;
+  min-width: 0;
+}
+
+/* Tiny uppercase label above the input */
+.vibe-field-label {
+  font-family: var(--ff-ui);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--c-text-faint);
+  line-height: 1;
+  margin-bottom: 2px;
+  user-select: none;
+  cursor: text;
+}
+
+/* Thin vertical divider between the two fields */
+.vibe-divider {
+  width: 1px;
+  background: var(--c-border);
+  flex-shrink: 0;
+  align-self: stretch;
+  margin: 7px 0;
 }
 
 .vibe-input {
   flex: 1;
-  height: 36px;
-  background: var(--c-surface);
-  border: 1px solid var(--c-border);
-  border-radius: var(--radius);
-  padding: 0 12px;
+  height: auto;
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: 0;
   font-family: var(--ff-ui);
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 400;
   color: var(--c-text);
-  outline: none;
-  transition: border-color var(--t-base), background var(--t-base);
+  width: 100%;
 }
 
 .vibe-input::placeholder { color: var(--c-text-faint); }
-.vibe-input:focus {
-  border-color: var(--c-border-dark);
-  background: var(--c-bg);
-}
 
 /* --- Generate Button --- */
 .generate-btn {

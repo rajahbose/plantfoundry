@@ -31,7 +31,7 @@ const CATEGORY_EMOJI = {
 
 let appState  = 'IDLE'; // IDLE | GENERATING_TEXT | FETCHING_IMAGES | COMPLETE
 let viewMode  = 'grid'; // 'grid' | 'table'
-let currentVibe    = '';
+let currentVibe    = { location: '', qualities: '' };
 let currentPalette = {}; // { trees: [], shrubs: [], small: [] }
 
 // ──────────────────────────────────────────────────────────
@@ -39,7 +39,8 @@ let currentPalette = {}; // { trees: [], shrubs: [], small: [] }
 // ──────────────────────────────────────────────────────────
 
 const el = {
-  vibeInput:       document.getElementById('vibe-input'),
+  locationInput:   document.getElementById('location-input'),
+  qualitiesInput:  document.getElementById('qualities-input'),
   generateBtn:     document.getElementById('generate-btn'),
   generateBtnText: document.querySelector('.generate-btn-text'),
   generateBtnIcon: document.querySelector('.generate-btn-icon'),
@@ -62,9 +63,10 @@ const el = {
   toastContainer:  document.getElementById('toast-container'),
 };
 
-el.vibeInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') el.generateBtn.click();
-});
+// Enter key submits from either field
+const submitOnEnter = (e) => { if (e.key === 'Enter') el.generateBtn.click(); };
+el.locationInput.addEventListener('keydown', submitOnEnter);
+el.qualitiesInput.addEventListener('keydown', submitOnEnter);
 
 // ──────────────────────────────────────────────────────────
 //  PROGRESS HELPERS
@@ -237,11 +239,11 @@ function injectCardImage(rowKey, index, imageUrl) {
 //  PLANT LIST — via /api/generate (Vercel serverless proxy)
 // ──────────────────────────────────────────────────────────
 
-async function fetchPlantList(vibe) {
+async function fetchPlantList(location, qualities) {
   const response = await fetch('/api/generate', {
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify({ vibe }),
+    body:    JSON.stringify({ location, qualities }),
   });
 
   const data = await response.json();
@@ -511,7 +513,12 @@ async function replacePlant(rowKey, idx) {
     const res = await fetch('/api/replace', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ vibe: currentVibe, category: rowKey, existing }),
+      body:    JSON.stringify({
+        location:  currentVibe.location,
+        qualities: currentVibe.qualities,
+        category:  rowKey,
+        existing,
+      }),
     });
 
     const newPlant = await res.json();
@@ -546,7 +553,8 @@ async function replacePlant(rowKey, idx) {
 
 function setGeneratingUI(isGenerating) {
   el.generateBtn.disabled = isGenerating;
-  el.vibeInput.disabled   = isGenerating;
+  el.locationInput.disabled  = isGenerating;
+  el.qualitiesInput.disabled = isGenerating;
   el.generateBtnText.textContent = isGenerating ? 'Generating' : 'Generate';
   el.generateBtnIcon.textContent = isGenerating ? '⦿' : '↗';
   el.generateBtn.classList.toggle('loading', isGenerating);
@@ -560,12 +568,13 @@ function setGeneratingUI(isGenerating) {
 // ──────────────────────────────────────────────────────────
 
 async function generate() {
-  const vibe = el.vibeInput.value.trim();
+  const location  = el.locationInput.value.trim();
+  const qualities = el.qualitiesInput.value.trim();
 
-  if (!vibe) {
-    el.vibeInput.focus();
-    el.vibeInput.classList.add('shake');
-    el.vibeInput.addEventListener('animationend', () => el.vibeInput.classList.remove('shake'), { once: true });
+  if (!location) {
+    el.locationInput.focus();
+    el.locationInput.classList.add('shake');
+    el.locationInput.addEventListener('animationend', () => el.locationInput.classList.remove('shake'), { once: true });
     return;
   }
 
@@ -581,8 +590,9 @@ async function generate() {
 
   try {
     // ── Phase 1: Plant List ──────────────────────────────
-    setProgress(10, `Building palette for "${vibe}"…`);
-    const plantList = await fetchPlantList(vibe);
+    const vibeLabel = qualities ? `${location} · ${qualities}` : location;
+    setProgress(10, `Building palette for “${location}”…`);
+    const plantList = await fetchPlantList(location, qualities);
     setProgress(22, 'Populating cards…');
 
     // Build both views
@@ -590,7 +600,7 @@ async function generate() {
     renderTableRows(plantList);
 
     // Save state for replace feature
-    currentVibe    = vibe;
+    currentVibe    = { location, qualities };
     currentPalette = {
       trees:  [...plantList[CATEGORY_KEYS.trees]],
       shrubs: [...plantList[CATEGORY_KEYS.shrubs]],
@@ -624,7 +634,10 @@ async function generate() {
 
     // ── Complete ─────────────────────────────────────────
     appState = 'COMPLETE';
-    setProgress(100, `Done — ${vibe}`);
+    const vibeLabel = currentVibe.qualities
+      ? `${currentVibe.location} · ${currentVibe.qualities}`
+      : currentVibe.location;
+    setProgress(100, `Done — ${vibeLabel}`);
     setGeneratingUI(false);
 
     setTimeout(() => {
