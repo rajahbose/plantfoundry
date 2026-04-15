@@ -151,27 +151,6 @@ function createPlantCard(plant, rowKey, index) {
         <div class="card-footer">
           <h2 class="card-common-name">${escapeHtml(plant.commonName)}</h2>
           <p class="card-latin-name">${escapeHtml(plant.latinName)}</p>
-          <div class="card-meta" aria-label="Water: ${escapeHtml(plant.waterNeeds || '')}, Sun: ${escapeHtml(plant.sunExposure || '')}">
-            <span class="card-water" title="Water: ${escapeHtml(plant.waterNeeds || '—')}">
-              ${waterDropsHtml(plant.waterNeeds)}
-            </span>
-            <span class="card-meta-divider" aria-hidden="true">·</span>
-            <span class="card-sun" title="Sun exposure: ${escapeHtml(plant.sunExposure || '—')}">
-              <svg class="sun-icon" width="9" height="9" viewBox="0 0 24 24" fill="none"
-                   stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-                <circle cx="12" cy="12" r="4"/>
-                <line x1="12" y1="2"  x2="12" y2="5"/>
-                <line x1="12" y1="19" x2="12" y2="22"/>
-                <line x1="2"  y1="12" x2="5"  y2="12"/>
-                <line x1="19" y1="12" x2="22" y2="12"/>
-                <line x1="4.22"  y1="4.22"  x2="6.34"  y2="6.34"/>
-                <line x1="17.66" y1="17.66" x2="19.78" y2="19.78"/>
-                <line x1="4.22"  y1="19.78" x2="6.34"  y2="17.66"/>
-                <line x1="17.66" y1="6.34"  x2="19.78" y2="4.22"/>
-              </svg>
-              ${escapeHtml(sunExposureShort(plant.sunExposure))}
-            </span>
-          </div>
         </div>
         <!-- Refresh button: swap this species -->
         <button
@@ -196,11 +175,25 @@ function createPlantCard(plant, rowKey, index) {
         <div class="card-back-specs">
           <div class="spec-item">
             <span class="spec-label">Water</span>
-            <span class="spec-value">${escapeHtml(plant.waterNeeds || '—')}</span>
+            <span class="spec-value spec-value-icons">${waterDropsHtml(plant.waterNeeds)}</span>
           </div>
           <div class="spec-item">
             <span class="spec-label">Sun</span>
-            <span class="spec-value">${escapeHtml(plant.sunExposure || '—')}</span>
+            <span class="spec-value spec-value-icons">
+              <svg class="sun-icon" width="9" height="9" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="4"/>
+                <line x1="12" y1="2"  x2="12" y2="5"/>
+                <line x1="12" y1="19" x2="12" y2="22"/>
+                <line x1="2"  y1="12" x2="5"  y2="12"/>
+                <line x1="19" y1="12" x2="22" y2="12"/>
+                <line x1="4.22"  y1="4.22"  x2="6.34"  y2="6.34"/>
+                <line x1="17.66" y1="17.66" x2="19.78" y2="19.78"/>
+                <line x1="4.22"  y1="19.78" x2="6.34"  y2="17.66"/>
+                <line x1="17.66" y1="6.34"  x2="19.78" y2="4.22"/>
+              </svg>
+              ${escapeHtml(sunExposureShort(plant.sunExposure))}
+            </span>
           </div>
           <div class="spec-item">
             <span class="spec-label">Zones</span>
@@ -488,8 +481,22 @@ function createTableRow(plant, rowKey, idx) {
     <td class="td-name"><span class="t-common">${escapeHtml(plant.commonName)}</span></td>
     <td class="td-latin">${escapeHtml(plant.latinName)}</td>
     <td class="td-cat">${escapeHtml(CATEGORY_LABELS[rowKey] || '')}</td>
-    <td class="td-spec">${escapeHtml(plant.waterNeeds     || '—')}</td>
-    <td class="td-spec">${escapeHtml(plant.sunExposure    || '—')}</td>
+    <td class="td-spec td-water"><span class="card-water">${waterDropsHtml(plant.waterNeeds)}</span></td>
+    <td class="td-spec td-sun"><span class="card-sun">
+      <svg class="sun-icon" width="9" height="9" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="4"/>
+        <line x1="12" y1="2"  x2="12" y2="5"/>
+        <line x1="12" y1="19" x2="12" y2="22"/>
+        <line x1="2"  y1="12" x2="5"  y2="12"/>
+        <line x1="19" y1="12" x2="22" y2="12"/>
+        <line x1="4.22"  y1="4.22"  x2="6.34"  y2="6.34"/>
+        <line x1="17.66" y1="17.66" x2="19.78" y2="19.78"/>
+        <line x1="4.22"  y1="19.78" x2="6.34"  y2="17.66"/>
+        <line x1="17.66" y1="6.34"  x2="19.78" y2="4.22"/>
+      </svg>
+      ${escapeHtml(sunExposureShort(plant.sunExposure))}
+    </span></td>
     <td class="td-spec">${escapeHtml(plant.hardinessZones || '—')}</td>
     <td class="td-spec">${escapeHtml(plant.matureHeight   || '—')}</td>
     <td class="td-spec">${escapeHtml(plant.growthRate     || '—')}</td>
