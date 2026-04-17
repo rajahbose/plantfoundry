@@ -1208,3 +1208,76 @@ body {
   }
 
 }
+
+/* ====================================================
+   PRINT STYLES
+   ==================================================== */
+
+@media print {
+  @page {
+    size: landscape;
+    margin: 10mm;
+  }
+
+  body {
+    background: #ffffff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Hide UI elements that shouldn't be printed */
+  .topbar, 
+  .progress-bar-wrap, 
+  .page-dots, 
+  .toast-container {
+    display: none !important;
+  }
+
+  .main-content {
+    padding-top: 0 !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* Show both grid and table for printing */
+  .grid-shell {
+    display: grid !important;
+    height: auto !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    page-break-after: always;
+    break-after: always;
+  }
+
+  .table-shell {
+    display: block !important;
+    height: auto !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  /* Prevent page breaks inside cards and rows */
+  .plant-card, .plant-row {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  
+  .table-group-row {
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+
+  /* Expand grid slightly for print */
+  .plant-grid {
+    gap: 12px;
+  }
+  
+  .plant-card {
+    border: 1px solid var(--c-border-dark) !important;
+    box-shadow: none !important;
+  }
+  
+  .card-refresh-btn {
+    display: none !important;
+  }
+}
