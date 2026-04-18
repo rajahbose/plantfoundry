@@ -36,6 +36,7 @@ Divide them into three groups of exactly 5:
 
 Return ONLY a valid JSON object with NO markdown, NO explanation, NO commentary — just raw JSON in this exact schema:
 {
+  "rationale": "A 2-3 sentence explanation of the design strategy, big ideas, and why these plants were chosen.",
   "smallPlantsAndGrasses": [
     {
       "commonName": "string",

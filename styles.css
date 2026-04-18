@@ -1314,3 +1314,95 @@ body {
 .export-capture .card-refresh-btn {
   display: none !important;
 }
+
+/* ====================================================
+   RATIONALE MODAL
+   ==================================================== */
+.rationale-modal {
+  margin: auto;
+  padding: 0;
+  border: 1px solid var(--c-border);
+  border-radius: calc(var(--radius) * 1.5);
+  background: var(--c-bg);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+  max-width: 500px;
+  width: 90%;
+  color: var(--c-text);
+  font-family: var(--ff-ui);
+}
+
+.rationale-modal::backdrop {
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.rationale-modal .modal-content {
+  position: relative;
+  padding: 32px;
+}
+
+.rationale-modal h2 {
+  font-family: var(--ff-serif);
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+  color: var(--c-text);
+  letter-spacing: -0.02em;
+}
+
+.rationale-modal p {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--c-text-muted);
+  margin: 0;
+}
+
+.rationale-modal .close-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: none;
+  border: none;
+  font-size: 24px;
+  line-height: 1;
+  color: var(--c-text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, color 0.2s;
+}
+
+.rationale-modal .close-btn:hover {
+  background: var(--c-bg-hover);
+  color: var(--c-text);
+}
+
+.icon-btn {
+  background: var(--c-bg);
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--c-text-muted);
+  cursor: pointer;
+  font-family: var(--ff-serif);
+  font-weight: 600;
+  font-style: italic;
+  font-size: 18px;
+  transition: all 0.2s;
+  margin-right: 8px;
+}
+.icon-btn:hover {
+  background: var(--c-bg-hover);
+  color: var(--c-text);
+  border-color: var(--c-border-dark);
+}

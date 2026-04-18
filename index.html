@@ -55,6 +55,9 @@
       </div>
     </div>
     <div class="topbar-right">
+      <button id="btn-info" class="icon-btn" hidden aria-label="Design Rationale" title="Design Rationale">
+        i
+      </button>
 
       <!-- View toggle -->
       <div class="view-toggle" role="group" aria-label="Display mode">
@@ -160,6 +163,15 @@
 
   <!-- ======= TOAST NOTIFICATIONS ======= -->
   <div class="toast-container" id="toast-container" role="alert" aria-live="assertive"></div>
+
+  <!-- Rationale Modal -->
+  <dialog id="rationale-modal" class="rationale-modal">
+    <div class="modal-content">
+      <button id="close-rationale-btn" class="close-btn" aria-label="Close" title="Close">×</button>
+      <h2>The Big Idea</h2>
+      <p id="rationale-text"></p>
+    </div>
+  </dialog>
 
   <!-- Native print handles PDF export -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.min.js"></script>

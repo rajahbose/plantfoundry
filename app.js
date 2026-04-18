@@ -62,6 +62,10 @@ const el = {
   btnGridView:     document.getElementById('btn-grid-view'),
   btnTableView:    document.getElementById('btn-table-view'),
   exportBtn:       document.getElementById('export-btn'),
+  btnInfo:         document.getElementById('btn-info'),
+  rationaleModal:  document.getElementById('rationale-modal'),
+  closeRationaleBtn: document.getElementById('close-rationale-btn'),
+  rationaleText:   document.getElementById('rationale-text'),
 
   toastContainer:  document.getElementById('toast-container'),
 };
@@ -675,6 +679,8 @@ async function generate() {
     const plantList = await fetchPlantList(location, qualities);
     setProgress(22, 'Populating cards…');
 
+    el.rationaleText.textContent = plantList.rationale || 'No rationale provided by AI.';
+
     // Build both views
     renderSkeletonCards(plantList);
     renderTableRows(plantList);
@@ -727,6 +733,7 @@ async function generate() {
     setProgress(100, `Done — ${vibeLabel}`);
     setGeneratingUI(false);
     el.exportBtn.disabled = false; // enable export now that palette is ready
+    el.btnInfo.hidden = false;
 
     setTimeout(() => {
       showProgress(false);
@@ -749,6 +756,11 @@ async function generate() {
 
 el.generateBtn.addEventListener('click', generate);
 el.exportBtn.addEventListener('click', exportPDF);
+el.btnInfo.addEventListener('click', () => el.rationaleModal.showModal());
+el.closeRationaleBtn.addEventListener('click', () => el.rationaleModal.close());
+el.rationaleModal.addEventListener('click', (e) => {
+  if (e.target === el.rationaleModal) el.rationaleModal.close();
+});
 
 // View toggle buttons
 el.btnGridView.addEventListener('click',  () => switchView('grid'));
