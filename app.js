@@ -845,121 +845,53 @@ initMobileSwipe();
 //  PDF EXPORT
 // ──────────────────────────────────────────────────────────
 
-/**
- * Fit an image (imgW × imgH pixels) into a page (pageW × pageH mm),
- * returning { x, y, w, h } in mm with the image centered and margins equal.
- */
-function fitToPage(imgW, imgH, pageW, pageH, margin = 8) {
-  const availW = pageW - margin * 2;
-  const availH = pageH - margin * 2;
-  const scale  = Math.min(availW / imgW, availH / imgH);
-  const w = imgW * scale;
-  const h = imgH * scale;
-  const x = margin + (availW - w) / 2;
-  const y = margin + (availH - h) / 2;
-  return { x, y, w, h };
-}
-
-async function captureShell(shell) {
-  const wasHidden  = shell.hasAttribute('hidden');
-  const savedStyle = shell.getAttribute('style') || '';
-  const viewW      = document.documentElement.clientWidth;
-
-  shell.removeAttribute('hidden');
-  shell.classList.add('export-capture'); // Disables 3D flip
-
-  shell.style.setProperty('position',   'fixed',         'important');
-  shell.style.setProperty('top',        '0',             'important');
-  shell.style.setProperty('left',       '0',             'important');
-  shell.style.setProperty('width',      `${viewW}px`,    'important');
-  shell.style.setProperty('height',     'auto',          'important');
-  shell.style.setProperty('max-height', 'none',          'important');
-  shell.style.setProperty('overflow',   'visible',       'important');
-  shell.style.setProperty('z-index',    '-999999',       'important');
-  shell.style.setProperty('background', '#ffffff',       'important');
-
-  const thead    = shell.querySelector('thead');
-  const theadPos = thead ? thead.style.position : null;
-  if (thead) thead.style.position = 'relative';
-
-  await new Promise(r => requestAnimationFrame(r));
-  await new Promise(r => requestAnimationFrame(r));
-
-  const dataUrl = await htmlToImage.toJpeg(shell, {
-    quality: 0.92,
-    pixelRatio: 3,
-    backgroundColor: '#ffffff'
-  });
-
-  if (wasHidden) shell.setAttribute('hidden', '');
-  shell.classList.remove('export-capture');
-  shell.setAttribute('style', savedStyle);
-  if (thead && theadPos !== null) thead.style.position = theadPos;
-
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.src = dataUrl;
-    img.onload = () => resolve({ img, dataUrl });
-  });
-}
-
 async function exportPDF() {
   if (appState !== 'COMPLETE') return;
 
   const { jsPDF } = window.jspdf;
 
-  // 11 × 17 (tabloid) landscape in mm
-  const PAGE_W = 431.8; // 17 inches
-  const PAGE_H = 279.4; // 11 inches
-
   el.exportBtn.disabled = true;
   el.exportBtn.querySelector('.export-btn-text').textContent = 'Exporting…';
-  showToast('Rendering pages — this may take a moment…', 'info', 6000);
+  showToast('Capturing screen…', 'info', 6000);
+
+  // Disable 3D transforms momentarily
+  document.body.classList.add('export-capture');
 
   try {
-    const doc = new jsPDF({
-      orientation: 'landscape',
-      unit:        'mm',
-      format:      [PAGE_W, PAGE_H],
+    // Capture the entire visible browser window exactly as it appears
+    const dataUrl = await htmlToImage.toJpeg(document.body, {
+      quality: 0.95,
+      pixelRatio: 2,
+      backgroundColor: '#ffffff'
     });
 
-    const vibeLabel = currentVibe.qualities
-      ? `${currentVibe.location} · ${currentVibe.qualities}`
-      : currentVibe.location;
+    const img = new Image();
+    img.src = dataUrl;
+    await new Promise(r => img.onload = r);
 
-    const addFooter = (pageLabel) => {
-      doc.setFontSize(6);
-      doc.setTextColor(190, 190, 190);
-      doc.text(
-        `PlantFoundry  ·  ${vibeLabel}  ·  ${pageLabel}`,
-        PAGE_W / 2, PAGE_H - 3,
-        { align: 'center' }
-      );
-    };
+    // Create a PDF with dimensions perfectly matching the screenshot
+    const pxToMm = 0.264583; // standard conversion
+    const pdfW = img.width * pxToMm;
+    const pdfH = img.height * pxToMm;
 
-    // ── Page 1: Grid ─────────────────────────────────────
-    const gridCapture = await captureShell(el.gridShell);
-    const gp = fitToPage(gridCapture.img.width, gridCapture.img.height, PAGE_W, PAGE_H);
-    doc.addImage(gridCapture.dataUrl, 'JPEG', gp.x, gp.y, gp.w, gp.h);
-    addFooter('Plant Grid');
+    const doc = new jsPDF({
+      orientation: pdfW > pdfH ? 'landscape' : 'portrait',
+      unit: 'mm',
+      format: [pdfW, pdfH]
+    });
 
-    // ── Page 2: Table ────────────────────────────────────
-    doc.addPage([PAGE_W, PAGE_H], 'landscape');
-    const tableCapture = await captureShell(el.tableShell);
-    const tp = fitToPage(tableCapture.img.width, tableCapture.img.height, PAGE_W, PAGE_H);
-    doc.addImage(tableCapture.dataUrl, 'JPEG', tp.x, tp.y, tp.w, tp.h);
-    addFooter('Plant Table');
+    doc.addImage(dataUrl, 'JPEG', 0, 0, pdfW, pdfH);
 
-    // ── Download ─────────────────────────────────────────
-    const safeName = (currentVibe.location || 'palette').replace(/[^a-z0-9]/gi, '_').replace(/__+/g, '_');
+    const safeName = (currentVibe.location || 'screenshot').replace(/[^a-z0-9]/gi, '_').replace(/__+/g, '_');
     doc.save(`PlantFoundry_${safeName}.pdf`);
 
-    showToast('PDF exported!', 'success', 4000);
+    showToast('Screenshot exported!', 'success', 4000);
 
   } catch (err) {
     console.error('exportPDF error:', err);
-    showToast('PDF export failed — please try again.', 'error', 6000);
+    showToast('Export failed — please try again.', 'error', 6000);
   } finally {
+    document.body.classList.remove('export-capture');
     el.exportBtn.disabled = false;
     el.exportBtn.querySelector('.export-btn-text').textContent = 'Export PDF';
   }
