@@ -47,6 +47,7 @@ Return ONLY a valid JSON object with NO markdown, NO explanation, NO commentary 
       "growthRate": "Slow | Moderate | Fast",
       "climate": "e.g. Mediterranean",
       "minTemp": "e.g. 20°F (-7°C)",
+      "soil": "e.g. Well-draining sandy loam",
       "predominantColors": "e.g. Silver-green foliage, purple flowers",
       "landscapeNote": "One sentence on its standout quality or best landscape use."
     },
