@@ -1281,3 +1281,21 @@ body {
     display: none !important;
   }
 }
+
+/* ====================================================
+   EXPORT CAPTURE (html-to-image)
+   ==================================================== */
+.export-capture .card-inner {
+  transform: none !important;
+  transition: none !important;
+}
+.export-capture .card-back {
+  display: none !important;
+}
+.export-capture .plant-card {
+  box-shadow: none !important;
+  border: 1px solid var(--c-border-dark) !important;
+}
+.export-capture .card-refresh-btn {
+  display: none !important;
+}
