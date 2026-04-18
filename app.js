@@ -845,6 +845,21 @@ initMobileSwipe();
 //  PDF EXPORT
 // ──────────────────────────────────────────────────────────
 
+/**
+ * Fit an image (imgW × imgH pixels) into a page (pageW × pageH mm),
+ * returning { x, y, w, h } in mm with the image centered and margins equal.
+ */
+function fitToPage(imgW, imgH, pageW, pageH, margin = 8) {
+  const availW = pageW - margin * 2;
+  const availH = pageH - margin * 2;
+  const scale  = Math.min(availW / imgW, availH / imgH);
+  const w = imgW * scale;
+  const h = imgH * scale;
+  const x = margin + (availW - w) / 2;
+  const y = margin + (availH - h) / 2;
+  return { x, y, w, h };
+}
+
 async function exportPDF() {
   if (appState !== 'COMPLETE') return;
 
@@ -852,16 +867,16 @@ async function exportPDF() {
 
   el.exportBtn.disabled = true;
   el.exportBtn.querySelector('.export-btn-text').textContent = 'Exporting…';
-  showToast('Capturing screen…', 'info', 6000);
+  showToast('Capturing high-res screen…', 'info', 6000);
 
   // Disable 3D transforms momentarily
   document.body.classList.add('export-capture');
 
   try {
-    // Capture the entire visible browser window exactly as it appears
+    // Capture the entire visible browser window at high resolution (3x pixel ratio)
     const dataUrl = await htmlToImage.toJpeg(document.body, {
-      quality: 0.95,
-      pixelRatio: 2,
+      quality: 1.0,
+      pixelRatio: 3,
       backgroundColor: '#ffffff'
     });
 
@@ -869,18 +884,24 @@ async function exportPDF() {
     img.src = dataUrl;
     await new Promise(r => img.onload = r);
 
-    // Create a PDF with dimensions perfectly matching the screenshot
-    const pxToMm = 0.264583; // standard conversion
-    const pdfW = img.width * pxToMm;
-    const pdfH = img.height * pxToMm;
+    // 11 × 17 (tabloid) dimensions in mm
+    const TABLOID_LONG = 431.8;
+    const TABLOID_SHORT = 279.4;
+    
+    // Auto-detect orientation based on screenshot aspect ratio
+    const isLandscape = img.width > img.height;
+    const pdfW = isLandscape ? TABLOID_LONG : TABLOID_SHORT;
+    const pdfH = isLandscape ? TABLOID_SHORT : TABLOID_LONG;
 
     const doc = new jsPDF({
-      orientation: pdfW > pdfH ? 'landscape' : 'portrait',
+      orientation: isLandscape ? 'landscape' : 'portrait',
       unit: 'mm',
       format: [pdfW, pdfH]
     });
 
-    doc.addImage(dataUrl, 'JPEG', 0, 0, pdfW, pdfH);
+    // Fit the high-res screenshot into the 11x17 page
+    const fp = fitToPage(img.width, img.height, pdfW, pdfH, 0); // 0 margin to maximize space
+    doc.addImage(dataUrl, 'JPEG', fp.x, fp.y, fp.w, fp.h);
 
     const safeName = (currentVibe.location || 'screenshot').replace(/[^a-z0-9]/gi, '_').replace(/__+/g, '_');
     doc.save(`PlantFoundry_${safeName}.pdf`);
